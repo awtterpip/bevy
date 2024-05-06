@@ -27,7 +27,7 @@ use bevy_ecs::{
 use bevy_math::{vec2, Dir3, Mat4, Ray3d, Rect, URect, UVec2, UVec4, Vec2, Vec3};
 use bevy_reflect::prelude::*;
 use bevy_render_macros::ExtractComponent;
-use bevy_transform::components::{GlobalTransform, Transform};
+use bevy_transform::components::GlobalTransform;
 use bevy_utils::{tracing::warn, warn_once};
 use bevy_utils::{HashMap, HashSet};
 use bevy_window::{
@@ -217,7 +217,6 @@ pub struct Camera {
     pub msaa_writeback: bool,
     /// The clear color operation to perform on the render target.
     pub clear_color: ClearColorConfig,
-    pub views: Option<Vec<Transform>>,
 }
 
 impl Default for Camera {
@@ -232,7 +231,6 @@ impl Default for Camera {
             hdr: false,
             msaa_writeback: true,
             clear_color: Default::default(),
-            views: None,
         }
     }
 }
@@ -336,28 +334,6 @@ impl Camera {
         self.computed.projection_matrix
     }
 
-    pub fn view_count(&self) -> usize {
-        self.views.as_ref().map(|views| views.len()).unwrap_or(1)
-    }
-
-    pub fn view_transform(
-        &self,
-        camera_transform: &GlobalTransform,
-        view_index: usize,
-    ) -> GlobalTransform {
-        if self
-            .views
-            .as_ref()
-            .is_some_and(|views| views.len() > view_index)
-        {
-            camera_transform.mul_transform(self.views.as_ref().unwrap()[view_index])
-        } else if view_index == 0 {
-            *camera_transform
-        } else {
-            panic!("This camera has no view with index {}", view_index);
-        }
-    }
-
     /// Given a position in world space, use the camera to compute the viewport-space coordinates.
     ///
     /// To get the coordinates in Normalized Device Coordinates, you should use
@@ -372,11 +348,10 @@ impl Camera {
     pub fn world_to_viewport(
         &self,
         camera_transform: &GlobalTransform,
-        view_index: usize,
         world_position: Vec3,
     ) -> Option<Vec2> {
         let target_size = self.logical_viewport_size()?;
-        let ndc_space_coords = self.world_to_ndc(camera_transform, view_index, world_position)?;
+        let ndc_space_coords = self.world_to_ndc(camera_transform, world_position)?;
         // NDC z-values outside of 0 < z < 1 are outside the (implicit) camera frustum and are thus not in viewport-space
         if ndc_space_coords.z < 0.0 || ndc_space_coords.z > 1.0 {
             return None;
@@ -405,10 +380,8 @@ impl Camera {
     pub fn viewport_to_world(
         &self,
         camera_transform: &GlobalTransform,
-        view_index: usize,
         mut viewport_position: Vec2,
     ) -> Option<Ray3d> {
-        let camera_transform = self.view_transform(camera_transform, view_index);
         let target_size = self.logical_viewport_size()?;
         // Flip the Y co-ordinate origin from the top to the bottom.
         viewport_position.y = target_size.y - viewport_position.y;
@@ -443,7 +416,6 @@ impl Camera {
     pub fn viewport_to_world_2d(
         &self,
         camera_transform: &GlobalTransform,
-        view_index: usize,
         mut viewport_position: Vec2,
     ) -> Option<Vec2> {
         let target_size = self.logical_viewport_size()?;
@@ -451,7 +423,7 @@ impl Camera {
         viewport_position.y = target_size.y - viewport_position.y;
         let ndc = viewport_position * 2. / target_size - Vec2::ONE;
 
-        let world_near_plane = self.ndc_to_world(camera_transform, view_index, ndc.extend(1.))?;
+        let world_near_plane = self.ndc_to_world(camera_transform, ndc.extend(1.))?;
 
         Some(world_near_plane.truncate())
     }
@@ -468,10 +440,8 @@ impl Camera {
     pub fn world_to_ndc(
         &self,
         camera_transform: &GlobalTransform,
-        view_index: usize,
         world_position: Vec3,
     ) -> Option<Vec3> {
-        let camera_transform = self.view_transform(camera_transform, view_index);
         // Build a transformation matrix to convert from world space to NDC using camera data
         let world_to_ndc: Mat4 =
             self.computed.projection_matrix * camera_transform.compute_matrix().inverse();
@@ -490,13 +460,7 @@ impl Camera {
     ///
     /// Returns `None` if the `camera_transform`, the `world_position`, or the projection matrix defined by [`CameraProjection`] contain `NAN`.
     /// Panics if the projection matrix is null and `glam_assert` is enabled.
-    pub fn ndc_to_world(
-        &self,
-        camera_transform: &GlobalTransform,
-        view_index: usize,
-        ndc: Vec3,
-    ) -> Option<Vec3> {
-        let camera_transform = self.view_transform(camera_transform, view_index);
+    pub fn ndc_to_world(&self, camera_transform: &GlobalTransform, ndc: Vec3) -> Option<Vec3> {
         // Build a transformation matrix to convert from NDC to world space using camera data
         let ndc_to_world =
             camera_transform.compute_matrix() * self.computed.projection_matrix.inverse();
