@@ -332,7 +332,7 @@ fn example_control_system(
         let world_position = labelled.get(label.entity).unwrap().translation() + Vec3::Y;
 
         let viewport_position = camera
-            .world_to_viewport(camera_global_transform, 0, world_position)
+            .world_to_viewport(camera_global_transform, world_position)
             .unwrap();
 
         style.top = Val::Px(viewport_position.y);

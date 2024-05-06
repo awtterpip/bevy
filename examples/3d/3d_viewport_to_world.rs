@@ -25,7 +25,7 @@ fn draw_cursor(
     };
 
     // Calculate a ray pointing from the camera into the world based on the cursor's position.
-    let Some(ray) = camera.viewport_to_world(camera_transform, 0, cursor_position) else {
+    let Some(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
         return;
     };
 
