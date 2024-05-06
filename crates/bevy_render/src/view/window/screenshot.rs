@@ -217,6 +217,7 @@ impl SpecializedRenderPipeline for ScreenshotToScreenPipeline {
                 })],
             }),
             push_constant_ranges: Vec::new(),
+            multiview: None,
         }
     }
 }

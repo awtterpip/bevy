@@ -1823,6 +1823,7 @@ impl SpecializedMeshPipeline for MeshPipeline {
                 alpha_to_coverage_enabled,
             },
             label: Some(label),
+            multiview: None,
         })
     }
 }

@@ -586,6 +586,7 @@ where
             },
             push_constant_ranges: vec![],
             label: Some("prepass_pipeline".into()),
+            multiview: None,
         };
 
         // This is a bit risky because it's possible to change something that would

@@ -4,7 +4,7 @@ use crate::{
     render_resource::{resource_macros::render_resource_wrapper, BindGroupLayout, Shader},
 };
 use bevy_asset::Handle;
-use std::{borrow::Cow, ops::Deref};
+use std::{borrow::Cow, num::NonZeroU32, ops::Deref};
 use wgpu::{
     BufferAddress, ColorTargetState, DepthStencilState, MultisampleState, PrimitiveState,
     PushConstantRange, VertexAttribute, VertexFormat, VertexStepMode,
@@ -107,6 +107,8 @@ pub struct RenderPipelineDescriptor {
     pub multisample: MultisampleState,
     /// The compiled fragment stage, its entry point, and the color targets.
     pub fragment: Option<FragmentState>,
+    /// If the pipeline will be used with a multiview render pass, this indicates how many array layers the attachments will have.
+    pub multiview: Option<NonZeroU32>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -196,6 +196,7 @@ impl SpecializedRenderPipeline for SkyboxPipeline {
                     write_mask: ColorWrites::ALL,
                 })],
             }),
+            multiview: None,
         }
     }
 }
