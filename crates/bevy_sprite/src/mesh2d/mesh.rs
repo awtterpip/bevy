@@ -593,10 +593,9 @@ pub fn prepare_mesh2d_view_bind_groups(
     views: Query<Entity, With<ExtractedView>>,
     globals_buffer: Res<GlobalsBuffer>,
 ) {
-    if let (Some(view_binding), Some(globals)) = (
-        view_uniforms.uniforms.binding(),
-        globals_buffer.buffer.binding(),
-    ) {
+    if let (Some(view_binding), Some(globals)) =
+        (view_uniforms.binding(), globals_buffer.buffer.binding())
+    {
         for entity in &views {
             let view_bind_group = render_device.create_bind_group(
                 "mesh2d_view_bind_group",
@@ -625,7 +624,7 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetMesh2dViewBindGroup<I
         _param: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        pass.set_bind_group(I, &mesh2d_view_bind_group.value, &[view_uniform.offset]);
+        pass.set_bind_group(I, &mesh2d_view_bind_group.value, &[]);
 
         RenderCommandResult::Success
     }

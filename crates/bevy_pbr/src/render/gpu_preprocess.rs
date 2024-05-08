@@ -227,9 +227,7 @@ impl Node for GpuPreprocessNode {
             compute_pass.set_pipeline(preprocess_pipeline);
 
             let mut dynamic_offsets: SmallVec<[u32; 1]> = smallvec![];
-            if gpu_culling {
-                dynamic_offsets.push(view_uniform_offset.offset);
-            }
+
             compute_pass.set_bind_group(0, &bind_group.0, &dynamic_offsets);
 
             let workgroup_count = index_buffer.buffer.len().div_ceil(WORKGROUP_SIZE);
@@ -421,7 +419,7 @@ pub fn prepare_preprocess_bind_groups(
             ) = (
                 indirect_parameters_buffer.buffer(),
                 mesh_culling_data_buffer.buffer(),
-                view_uniforms.uniforms.binding(),
+                view_uniforms.binding(),
             )
             else {
                 continue;

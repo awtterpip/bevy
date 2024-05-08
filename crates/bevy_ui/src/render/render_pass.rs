@@ -170,7 +170,7 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiViewBindGroup<I> {
         pass.set_bind_group(
             I,
             ui_meta.into_inner().view_bind_group.as_ref().unwrap(),
-            &[view_uniform.offset],
+            &[],
         );
         RenderCommandResult::Success
     }

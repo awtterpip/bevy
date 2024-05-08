@@ -99,7 +99,6 @@ impl ViewNode for MeshletMainOpaquePass3dNode {
             0,
             &mesh_view_bind_group.value,
             &[
-                view_uniform_offset.offset,
                 view_lights_offset.offset,
                 view_fog_offset.offset,
                 **view_light_probes_offset,
@@ -213,16 +212,13 @@ impl ViewNode for MeshletPrepassNode {
             render_pass.set_bind_group(
                 0,
                 prepass_view_bind_group.motion_vectors.as_ref().unwrap(),
-                &[
-                    view_uniform_offset.offset,
-                    previous_view_uniform_offset.offset,
-                ],
+                &[previous_view_uniform_offset.offset],
             );
         } else {
             render_pass.set_bind_group(
                 0,
                 prepass_view_bind_group.no_motion_vectors.as_ref().unwrap(),
-                &[view_uniform_offset.offset],
+                &[],
             );
         }
 
@@ -339,16 +335,13 @@ impl ViewNode for MeshletDeferredGBufferPrepassNode {
             render_pass.set_bind_group(
                 0,
                 prepass_view_bind_group.motion_vectors.as_ref().unwrap(),
-                &[
-                    view_uniform_offset.offset,
-                    previous_view_uniform_offset.offset,
-                ],
+                &[previous_view_uniform_offset.offset],
             );
         } else {
             render_pass.set_bind_group(
                 0,
                 prepass_view_bind_group.no_motion_vectors.as_ref().unwrap(),
-                &[view_uniform_offset.offset],
+                &[],
             );
         }
 

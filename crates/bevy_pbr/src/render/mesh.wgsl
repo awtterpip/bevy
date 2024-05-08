@@ -60,7 +60,7 @@ fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
 
 #ifdef VERTEX_POSITIONS
     out.world_position = mesh_functions::mesh_position_local_to_world(model, vec4<f32>(vertex.position, 1.0));
-    out.position = position_world_to_clip(out.world_position.xyz);
+    out.position = position_world_to_clip(out.world_position.xyz, 0u);
 #endif
 
 #ifdef VERTEX_UVS

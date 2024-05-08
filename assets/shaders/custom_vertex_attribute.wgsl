@@ -22,6 +22,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     out.clip_position = mesh_position_local_to_clip(
         get_model_matrix(vertex.instance_index),
         vec4<f32>(vertex.position, 1.0),
+        0,
     );
     out.blend_color = vertex.blend_color;
     return out;

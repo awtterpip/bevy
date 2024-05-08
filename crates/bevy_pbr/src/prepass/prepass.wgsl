@@ -50,7 +50,7 @@ fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
     var model = mesh_functions::get_model_matrix(vertex_no_morph.instance_index);
 #endif // SKINNED
 
-    out.position = mesh_functions::mesh_position_local_to_clip(model, vec4(vertex.position, 1.0));
+    out.position = mesh_functions::mesh_position_local_to_clip(model, vec4(vertex.position, 1.0), 0u);
 #ifdef DEPTH_CLAMP_ORTHO
     out.clip_position_unclamped = out.position;
     out.position.z = min(out.position.z, 1.0);

@@ -408,6 +408,25 @@ pub mod binding_types {
         .into_bind_group_layout_entry_builder()
     }
 
+    pub fn buffer_layout(
+        buffer_binding_type: BufferBindingType,
+        has_dynamic_offset: bool,
+        min_binding_size: Option<NonZeroU64>,
+    ) -> BindGroupLayoutEntryBuilder {
+        match buffer_binding_type {
+            BufferBindingType::Uniform => {
+                uniform_buffer_sized(has_dynamic_offset, min_binding_size)
+            }
+            BufferBindingType::Storage { read_only } => {
+                if read_only {
+                    storage_buffer_read_only_sized(has_dynamic_offset, min_binding_size)
+                } else {
+                    storage_buffer_sized(has_dynamic_offset, min_binding_size)
+                }
+            }
+        }
+    }
+
     pub fn texture_1d(sample_type: TextureSampleType) -> BindGroupLayoutEntryBuilder {
         BindingType::Texture {
             sample_type,

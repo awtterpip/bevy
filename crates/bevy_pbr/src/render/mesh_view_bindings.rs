@@ -19,7 +19,7 @@ use bevy_render::{
     render_resource::{binding_types::*, *},
     renderer::RenderDevice,
     texture::{BevyDefault, FallbackImage, FallbackImageMsaa, FallbackImageZero, GpuImage},
-    view::{Msaa, RenderVisibilityRanges, ViewUniform, ViewUniforms},
+    view::{Msaa, RenderVisibilityRanges, ViewUniform, ViewUniformOffset, ViewUniforms},
 };
 
 #[cfg(all(feature = "webgl", target_arch = "wasm32", not(feature = "webgpu")))]
@@ -150,23 +150,6 @@ impl From<Option<&ViewPrepassTextures>> for MeshPipelineViewLayoutKey {
     }
 }
 
-fn buffer_layout(
-    buffer_binding_type: BufferBindingType,
-    has_dynamic_offset: bool,
-    min_binding_size: Option<NonZeroU64>,
-) -> BindGroupLayoutEntryBuilder {
-    match buffer_binding_type {
-        BufferBindingType::Uniform => uniform_buffer_sized(has_dynamic_offset, min_binding_size),
-        BufferBindingType::Storage { read_only } => {
-            if read_only {
-                storage_buffer_read_only_sized(has_dynamic_offset, min_binding_size)
-            } else {
-                storage_buffer_sized(has_dynamic_offset, min_binding_size)
-            }
-        }
-    }
-}
-
 /// Returns the appropriate bind group layout vec based on the parameters
 fn layout_entries(
     clustered_forward_buffer_binding_type: BufferBindingType,
@@ -180,7 +163,12 @@ fn layout_entries(
             // View
             (
                 0,
-                uniform_buffer::<ViewUniform>(true).visibility(ShaderStages::VERTEX_FRAGMENT),
+                buffer_layout(
+                    BufferBindingType::Storage { read_only: true },
+                    false,
+                    Some(ViewUniform::min_size()),
+                )
+                .visibility(ShaderStages::VERTEX_FRAGMENT),
             ),
             // Lights
             (1, uniform_buffer::<GpuLights>(true)),
@@ -327,6 +315,14 @@ fn layout_entries(
         (26, sampler(SamplerBindingType::Filtering)),
     ));
 
+    entries = entries.extend_with_indices((
+        // View offset
+        (
+            27,
+            uniform_buffer::<u32>(false).visibility(ShaderStages::VERTEX_FRAGMENT),
+        ),
+    ));
+
     entries.to_vec()
 }
 
@@ -378,6 +374,7 @@ pub fn prepare_mesh_view_bind_groups(
     view_uniforms: Res<ViewUniforms>,
     views: Query<(
         Entity,
+        &ViewUniformOffset,
         &ViewShadowBindings,
         &ViewClusterBindings,
         Option<&ScreenSpaceAmbientOcclusionTextures>,
@@ -408,7 +405,7 @@ pub fn prepare_mesh_view_bind_groups(
         Some(light_probes_binding),
         Some(visibility_ranges_buffer),
     ) = (
-        view_uniforms.uniforms.binding(),
+        view_uniforms.binding(),
         light_meta.view_gpu_lights.binding(),
         global_light_meta.gpu_point_lights.binding(),
         globals_buffer.buffer.binding(),
@@ -418,6 +415,7 @@ pub fn prepare_mesh_view_bind_groups(
     ) {
         for (
             entity,
+            view_offset,
             shadow_bindings,
             cluster_bindings,
             ssao_textures,
@@ -545,8 +543,11 @@ pub fn prepare_mesh_view_bind_groups(
                 .map(|transmission| &transmission.sampler)
                 .unwrap_or(&fallback_image_zero.sampler);
 
-            entries =
-                entries.extend_with_indices(((25, transmission_view), (26, transmission_sampler)));
+            entries = entries.extend_with_indices((
+                (25, transmission_view),
+                (26, transmission_sampler),
+                (27, view_offset.buffer.binding().unwrap()),
+            ));
 
             commands.entity(entity).insert(MeshViewBindGroup {
                 value: render_device.create_bind_group("mesh_view_bind_group", layout, &entries),

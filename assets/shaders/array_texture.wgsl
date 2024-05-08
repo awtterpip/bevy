@@ -50,7 +50,7 @@ fn fragment(
         mesh.uv,
         view.mip_bias,
     );
-    pbr_input.V = fns::calculate_view(mesh.world_position, pbr_input.is_orthographic);
+    pbr_input.V = fns::calculate_view(mesh.world_position, pbr_input.is_orthographic, 0u);
 
-    return tone_mapping(fns::apply_pbr_lighting(pbr_input), view.color_grading);
+    return tone_mapping(fns::apply_pbr_lighting(pbr_input, 0u), view.color_grading);
 }

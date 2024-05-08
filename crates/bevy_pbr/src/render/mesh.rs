@@ -1950,12 +1950,7 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetMeshViewBindGroup<I> 
         pass.set_bind_group(
             I,
             &mesh_view_bind_group.value,
-            &[
-                view_uniform.offset,
-                view_lights.offset,
-                view_fog.offset,
-                **view_light_probes,
-            ],
+            &[view_lights.offset, view_fog.offset, **view_light_probes],
         );
 
         RenderCommandResult::Success

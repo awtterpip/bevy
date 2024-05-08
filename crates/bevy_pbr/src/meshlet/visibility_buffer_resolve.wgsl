@@ -94,7 +94,7 @@ struct VertexOutput {
 }
 
 /// Load the visibility buffer texture and resolve it into a VertexOutput.
-fn resolve_vertex_output(frag_coord: vec4<f32>) -> VertexOutput {
+fn resolve_vertex_output(frag_coord: vec4<f32>, view_index: u32) -> VertexOutput {
     let vbuffer = textureLoad(meshlet_visibility_buffer, vec2<i32>(frag_coord.xy), 0).r;
     let cluster_id = vbuffer >> 6u;
     let meshlet_id = meshlet_thread_meshlet_ids[cluster_id];
@@ -114,9 +114,9 @@ fn resolve_vertex_output(frag_coord: vec4<f32>) -> VertexOutput {
     let world_position_1 = mesh_position_local_to_world(model, vec4(vertex_1.position, 1.0));
     let world_position_2 = mesh_position_local_to_world(model, vec4(vertex_2.position, 1.0));
     let world_position_3 = mesh_position_local_to_world(model, vec4(vertex_3.position, 1.0));
-    let clip_position_1 = position_world_to_clip(world_position_1.xyz);
-    let clip_position_2 = position_world_to_clip(world_position_2.xyz);
-    let clip_position_3 = position_world_to_clip(world_position_3.xyz);
+    let clip_position_1 = position_world_to_clip(world_position_1.xyz, view_index);
+    let clip_position_2 = position_world_to_clip(world_position_2.xyz, view_index);
+    let clip_position_3 = position_world_to_clip(world_position_3.xyz, view_index);
     let frag_coord_ndc = frag_coord_to_ndc(frag_coord).xy;
     let partial_derivatives = compute_partial_derivatives(
         array(clip_position_1, clip_position_2, clip_position_3),

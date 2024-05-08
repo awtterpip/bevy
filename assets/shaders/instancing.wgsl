@@ -24,7 +24,8 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     // uniform instead but it's unnecessary for the example.
     out.clip_position = mesh_position_local_to_clip(
         get_model_matrix(0u),
-        vec4<f32>(position, 1.0)
+        vec4<f32>(position, 1.0),
+        0
     );
     out.color = vertex.i_color;
     return out;

@@ -128,7 +128,7 @@ impl SkyboxPipeline {
                     (
                         texture_cube(TextureSampleType::Float { filterable: true }),
                         sampler(SamplerBindingType::Filtering),
-                        uniform_buffer::<ViewUniform>(true)
+                        uniform_buffer::<ViewUniform>(false)
                             .visibility(ShaderStages::VERTEX_FRAGMENT),
                         uniform_buffer::<SkyboxUniforms>(true),
                     ),
@@ -244,7 +244,7 @@ fn prepare_skybox_bind_groups(
     for (entity, skybox, skybox_uniform_index) in &views {
         if let (Some(skybox), Some(view_uniforms), Some(skybox_uniforms)) = (
             images.get(&skybox.image),
-            view_uniforms.uniforms.binding(),
+            view_uniforms.binding(),
             skybox_uniforms.binding(),
         ) {
             let bind_group = render_device.create_bind_group(
