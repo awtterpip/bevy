@@ -1,6 +1,7 @@
 mod prepass_bindings;
 
-use bevy_render::render_resource::binding_types::uniform_buffer;
+use bevy_ecs::query::ROQueryItem;
+use bevy_render::render_resource::binding_types::{buffer_layout, uniform_buffer};
 pub use prepass_bindings::*;
 
 use bevy_app::{Plugin, PreUpdate};
@@ -96,7 +97,6 @@ where
                 Render,
                 prepare_prepass_view_bind_group::<M>.in_set(RenderSet::PrepareBindGroups),
             )
-            .init_resource::<PrepassViewBindGroup>()
             .init_resource::<SpecializedMeshPipelines<PrepassPipeline<M>>>()
             .allow_ambiguous_resource::<SpecializedMeshPipelines<PrepassPipeline<M>>>()
             .init_resource::<PreviousViewProjectionUniforms>();
@@ -107,7 +107,9 @@ where
             return;
         };
 
-        render_app.init_resource::<PrepassPipeline<M>>();
+        render_app
+            .init_resource::<PreviousViewUniforms>()
+            .init_resource::<PrepassPipeline<M>>();
     }
 }
 
@@ -235,28 +237,52 @@ impl<M: Material> FromWorld for PrepassPipeline<M> {
 
         let view_layout_motion_vectors = render_device.create_bind_group_layout(
             "prepass_view_layout_motion_vectors",
-            &BindGroupLayoutEntries::sequential(
+            &BindGroupLayoutEntries::with_indices(
                 ShaderStages::VERTEX_FRAGMENT,
                 (
                     // View
-                    uniform_buffer::<ViewUniform>(true),
+                    (
+                        0,
+                        buffer_layout(
+                            BufferBindingType::Storage { read_only: true },
+                            false,
+                            Some(ViewUniform::min_size()),
+                        ),
+                    ),
                     // Globals
-                    uniform_buffer::<GlobalsUniform>(false),
-                    // PreviousViewProjection
-                    uniform_buffer::<PreviousViewProjection>(true),
+                    (1, uniform_buffer::<GlobalsUniform>(false)),
+                    // PreviousViewUniforms
+                    (
+                        2,
+                        buffer_layout(
+                            BufferBindingType::Storage { read_only: true },
+                            false,
+                            Some(PreviousViewData::min_size()),
+                        ),
+                    ),
+                    (27, uniform_buffer::<u32>(false)),
+                    (28, uniform_buffer::<u32>(false)),
                 ),
             ),
         );
 
         let view_layout_no_motion_vectors = render_device.create_bind_group_layout(
             "prepass_view_layout_no_motion_vectors",
-            &BindGroupLayoutEntries::sequential(
+            &BindGroupLayoutEntries::with_indices(
                 ShaderStages::VERTEX_FRAGMENT,
                 (
                     // View
-                    uniform_buffer::<ViewUniform>(true),
+                    (
+                        0,
+                        buffer_layout(
+                            BufferBindingType::Storage { read_only: true },
+                            false,
+                            Some(ViewUniform::min_size()),
+                        ),
+                    ),
                     // Globals
-                    uniform_buffer::<GlobalsUniform>(false),
+                    (1, uniform_buffer::<GlobalsUniform>(false)),
+                    (27, uniform_buffer::<u32>(false)),
                 ),
             ),
         );
@@ -597,84 +623,137 @@ pub fn extract_camera_previous_view_projection(
     }
 }
 
-#[derive(Resource, Default)]
-pub struct PreviousViewProjectionUniforms {
-    pub uniforms: DynamicUniformBuffer<PreviousViewProjection>,
+#[derive(Resource)]
+pub struct PreviousViewUniforms {
+    pub uniforms: BufferVec<PreviousViewData>,
+}
+
+impl FromWorld for PreviousViewUniforms {
+    fn from_world(world: &mut World) -> Self {
+        let mut buffer_usages = BufferUsages::UNIFORM;
+
+        let render_device = world.resource::<RenderDevice>();
+        if render_device.limits().max_storage_buffers_per_shader_stage > 0 {
+            buffer_usages |= BufferUsages::STORAGE;
+        }
+
+        Self {
+            uniforms: BufferVec::new(buffer_usages),
+        }
+    }
 }
 
 #[derive(Component)]
-pub struct PreviousViewProjectionUniformOffset {
-    pub offset: u32,
+pub struct PreviousViewUniformOffset {
+    pub offset: UniformBuffer<u32>,
 }
 
 pub fn prepare_previous_view_projection_uniforms(
     mut commands: Commands,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
-    mut view_uniforms: ResMut<PreviousViewProjectionUniforms>,
-    views: Query<
-        (Entity, &ExtractedView, Option<&PreviousViewProjection>),
-        With<MotionVectorPrepass>,
+    mut previous_view_uniforms: ResMut<PreviousViewUniforms>,
+    mut views: Query<
+        (
+            Entity,
+            &ExtractedView,
+            Option<&PreviousViewData>,
+            Option<&mut PreviousViewUniformOffset>,
+        ),
+        PreviousViewFilter,
     >,
 ) {
-    let views_iter = views.iter();
-    let view_count = views_iter.len();
-    let Some(mut writer) =
-        view_uniforms
-            .uniforms
-            .get_writer(view_count, &render_device, &render_queue)
-    else {
-        return;
-    };
-    for (entity, camera, maybe_previous_view_proj) in views_iter {
-        let view_projection = match maybe_previous_view_proj {
+    previous_view_uniforms.uniforms.clear();
+    for (entity, camera, maybe_previous_view_uniforms, maybe_previous_offset) in &mut views {
+        let view_projection = match maybe_previous_view_uniforms {
             Some(previous_view) => previous_view.clone(),
-            None => PreviousViewProjection {
-                view_proj: camera.projection * camera.transform.compute_matrix().inverse(),
-            },
+            None => {
+                let inverse_view = camera.transform.compute_matrix().inverse();
+                PreviousViewData {
+                    inverse_view,
+                    view_proj: camera.projection * inverse_view,
+                }
+            }
         };
-        commands
-            .entity(entity)
-            .insert(PreviousViewProjectionUniformOffset {
-                offset: writer.write(&view_projection),
-            });
+
+        let index = previous_view_uniforms.uniforms.push(view_projection) as u32;
+
+        if let Some(mut offset) = maybe_previous_offset {
+            offset.offset.set(index);
+            offset.offset.write_buffer(&render_device, &render_queue);
+        } else {
+            let mut offset = PreviousViewUniformOffset {
+                offset: Default::default(),
+            };
+
+            offset.offset.set(index);
+            offset.offset.write_buffer(&render_device, &render_queue);
+
+            commands.entity(entity).insert(offset);
+        }
     }
 }
 
-#[derive(Default, Resource)]
+#[derive(Default, Component)]
 pub struct PrepassViewBindGroup {
     pub motion_vectors: Option<BindGroup>,
     pub no_motion_vectors: Option<BindGroup>,
 }
 
 pub fn prepare_prepass_view_bind_group<M: Material>(
+    mut commands: Commands,
     render_device: Res<RenderDevice>,
     prepass_pipeline: Res<PrepassPipeline<M>>,
     view_uniforms: Res<ViewUniforms>,
     globals_buffer: Res<GlobalsBuffer>,
-    previous_view_proj_uniforms: Res<PreviousViewProjectionUniforms>,
-    mut prepass_view_bind_group: ResMut<PrepassViewBindGroup>,
+    previous_view_uniforms: Res<PreviousViewUniforms>,
+    views: Query<(
+        Entity,
+        &ViewUniformOffset,
+        Option<&PreviousViewUniformOffset>,
+    )>,
+    //mut prepass_view_bind_group: ResMut<PrepassViewBindGroup>,
 ) {
-    if let (Some(view_binding), Some(globals_binding)) = (
-        view_uniforms.uniforms.binding(),
-        globals_buffer.buffer.binding(),
-    ) {
-        prepass_view_bind_group.no_motion_vectors = Some(render_device.create_bind_group(
-            "prepass_view_no_motion_vectors_bind_group",
-            &prepass_pipeline.view_layout_no_motion_vectors,
-            &BindGroupEntries::sequential((view_binding.clone(), globals_binding.clone())),
-        ));
+    if let (Some(view_binding), Some(globals_binding)) =
+        (view_uniforms.binding(), globals_buffer.buffer.binding())
+    {
+        for (entity, view_offset, maybe_previous_view_offset) in views.iter() {
+            let mut prepass_view_bind_group = PrepassViewBindGroup::default();
 
-        if let Some(previous_view_proj_binding) = previous_view_proj_uniforms.uniforms.binding() {
-            prepass_view_bind_group.motion_vectors = Some(render_device.create_bind_group(
-                "prepass_view_motion_vectors_bind_group",
-                &prepass_pipeline.view_layout_motion_vectors,
-                &BindGroupEntries::sequential((
-                    view_binding,
-                    globals_binding,
-                    previous_view_proj_binding,
+            let no_motion_vector_entries = BindGroupEntries::with_indices((
+                (0, view_binding.clone()),
+                (1, globals_binding.clone()),
+                (27, view_offset.buffer.binding().unwrap()),
+            ));
+
+            prepass_view_bind_group.no_motion_vectors = Some(render_device.create_bind_group(
+                "prepass_view_no_motion_vectors_bind_group",
+                &prepass_pipeline.view_layout_no_motion_vectors,
+                &BindGroupEntries::with_indices((
+                    (0, view_binding.clone()),
+                    (1, globals_binding.clone()),
+                    (27, view_offset.buffer.binding().unwrap()),
                 )),
             ));
+
+            if let (Some(previous_view_uniforms_binding), Some(previous_view_uniform_offset)) = (
+                previous_view_uniforms.uniforms.buffer(),
+                maybe_previous_view_offset,
+            ) {
+                prepass_view_bind_group.motion_vectors = Some(render_device.create_bind_group(
+                    "prepass_view_motion_vectors_bind_group",
+                    &prepass_pipeline.view_layout_motion_vectors,
+                    &BindGroupEntries::with_indices((
+                        (0, view_binding.clone()),
+                        (1, globals_binding.clone()),
+                        (2, previous_view_uniforms_binding.as_entire_binding()),
+                        (27, view_offset.buffer.binding().unwrap()),
+                        (28, previous_view_uniform_offset.offset.binding().unwrap()),
+                    )),
+                ));
+            }
+
+            commands.entity(entity).insert(prepass_view_bind_group);
         }
     }
 }
@@ -898,43 +977,43 @@ pub fn queue_prepass_material_meshes<M: Material>(
 
 pub struct SetPrepassViewBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetPrepassViewBindGroup<I> {
-    type Param = SRes<PrepassViewBindGroup>;
+    type Param = ();
     type ViewQuery = (
         Read<ViewUniformOffset>,
-        Option<Read<PreviousViewProjectionUniformOffset>>,
+        Read<PrepassViewBindGroup>,
+        Has<MotionVectorPrepass>,
+        Option<Read<PreviousViewUniformOffset>>,
     );
     type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
         _item: &P,
-        (view_uniform_offset, previous_view_projection_uniform_offset): (
-            &'_ ViewUniformOffset,
-            Option<&'_ PreviousViewProjectionUniformOffset>,
-        ),
+        (
+            view_uniform_offset,
+            prepass_view_bind_group,
+            has_motion_vector_prepass,
+            previous_view_uniform_offset,
+        ): ROQueryItem<'w, Self::ViewQuery>,
         _entity: Option<()>,
-        prepass_view_bind_group: SystemParamItem<'w, '_, Self::Param>,
+        _: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let prepass_view_bind_group = prepass_view_bind_group.into_inner();
-
-        if let Some(previous_view_projection_uniform_offset) =
-            previous_view_projection_uniform_offset
-        {
-            pass.set_bind_group(
-                I,
-                prepass_view_bind_group.motion_vectors.as_ref().unwrap(),
-                &[
-                    view_uniform_offset.offset,
-                    previous_view_projection_uniform_offset.offset,
-                ],
-            );
-        } else {
-            pass.set_bind_group(
-                I,
-                prepass_view_bind_group.no_motion_vectors.as_ref().unwrap(),
-                &[view_uniform_offset.offset],
-            );
+        match previous_view_uniform_offset {
+            Some(previous_view_uniform_offset) if has_motion_vector_prepass => {
+                pass.set_bind_group(
+                    I,
+                    prepass_view_bind_group.motion_vectors.as_ref().unwrap(),
+                    &[],
+                );
+            }
+            _ => {
+                pass.set_bind_group(
+                    I,
+                    prepass_view_bind_group.no_motion_vectors.as_ref().unwrap(),
+                    &[],
+                );
+            }
         }
 
         RenderCommandResult::Success

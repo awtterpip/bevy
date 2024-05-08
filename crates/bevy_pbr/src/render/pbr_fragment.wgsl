@@ -7,7 +7,7 @@
     prepass_utils,
     lighting,
     mesh_bindings::mesh,
-    mesh_view_bindings::view,
+    mesh_view_bindings::get_view,
     parallax_mapping::parallaxed_uv,
     lightmap::lightmap,
 }
@@ -28,12 +28,17 @@ fn pbr_input_from_vertex_output(
     in: VertexOutput,
     is_front: bool,
     double_sided: bool,
+    view_index: u32,
 ) -> pbr_types::PbrInput {
     var pbr_input: pbr_types::PbrInput = pbr_types::pbr_input_new();
 
     pbr_input.flags = mesh[in.instance_index].flags;
+#endif
+
+    let view = get_view(view_index);
+
     pbr_input.is_orthographic = view.projection[3].w == 1.0;
-    pbr_input.V = pbr_functions::calculate_view(in.world_position, pbr_input.is_orthographic);
+    pbr_input.V = pbr_functions::calculate_view(in.world_position, pbr_input.is_orthographic, view_index);
     pbr_input.frag_coord = in.position;
     pbr_input.world_position = in.world_position;
 
@@ -61,10 +66,12 @@ fn pbr_input_from_vertex_output(
 fn pbr_input_from_standard_material(
     in: VertexOutput,
     is_front: bool,
+    view_index: u32,
 ) -> pbr_types::PbrInput {
     let double_sided = (pbr_bindings::material.flags & pbr_types::STANDARD_MATERIAL_FLAGS_DOUBLE_SIDED_BIT) != 0u;
+    let view = get_view(view_index);
 
-    var pbr_input: pbr_types::PbrInput = pbr_input_from_vertex_output(in, is_front, double_sided);
+    var pbr_input: pbr_types::PbrInput = pbr_input_from_vertex_output(in, is_front, double_sided, view_index);
     pbr_input.material.flags = pbr_bindings::material.flags;
     pbr_input.material.base_color *= pbr_bindings::material.base_color;
     pbr_input.material.deferred_lighting_pass_id = pbr_bindings::material.deferred_lighting_pass_id;

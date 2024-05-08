@@ -236,11 +236,7 @@ impl ViewNode for SsaoNode {
                     });
             preprocess_depth_pass.set_pipeline(preprocess_depth_pipeline);
             preprocess_depth_pass.set_bind_group(0, &bind_groups.preprocess_depth_bind_group, &[]);
-            preprocess_depth_pass.set_bind_group(
-                1,
-                &bind_groups.common_bind_group,
-                &[view_uniform_offset.offset],
-            );
+            preprocess_depth_pass.set_bind_group(1, &bind_groups.common_bind_group, &[]);
             preprocess_depth_pass.dispatch_workgroups(
                 div_ceil(camera_size.x, 16),
                 div_ceil(camera_size.y, 16),
@@ -258,11 +254,7 @@ impl ViewNode for SsaoNode {
                     });
             gtao_pass.set_pipeline(gtao_pipeline);
             gtao_pass.set_bind_group(0, &bind_groups.gtao_bind_group, &[]);
-            gtao_pass.set_bind_group(
-                1,
-                &bind_groups.common_bind_group,
-                &[view_uniform_offset.offset],
-            );
+            gtao_pass.set_bind_group(1, &bind_groups.common_bind_group, &[]);
             gtao_pass.dispatch_workgroups(
                 div_ceil(camera_size.x, 8),
                 div_ceil(camera_size.y, 8),
@@ -280,11 +272,7 @@ impl ViewNode for SsaoNode {
                     });
             spatial_denoise_pass.set_pipeline(spatial_denoise_pipeline);
             spatial_denoise_pass.set_bind_group(0, &bind_groups.spatial_denoise_bind_group, &[]);
-            spatial_denoise_pass.set_bind_group(
-                1,
-                &bind_groups.common_bind_group,
-                &[view_uniform_offset.offset],
-            );
+            spatial_denoise_pass.set_bind_group(1, &bind_groups.common_bind_group, &[]);
             spatial_denoise_pass.dispatch_workgroups(
                 div_ceil(camera_size.x, 8),
                 div_ceil(camera_size.y, 8),
@@ -644,10 +632,9 @@ fn prepare_ssao_bind_groups(
         &ViewPrepassTextures,
     )>,
 ) {
-    let (Some(view_uniforms), Some(globals_uniforms)) = (
-        view_uniforms.uniforms.binding(),
-        global_uniforms.buffer.binding(),
-    ) else {
+    let (Some(view_uniforms), Some(globals_uniforms)) =
+        (view_uniforms.binding(), global_uniforms.buffer.binding())
+    else {
         return;
     };
 

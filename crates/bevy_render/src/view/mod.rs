@@ -15,13 +15,15 @@ use crate::{
     primitives::Frustum,
     render_asset::RenderAssets,
     render_phase::ViewRangefinder3d,
-    render_resource::{DynamicUniformBuffer, ShaderType, Texture, TextureView},
+    render_resource::{
+        BufferVec, DynamicUniformBuffer, ShaderType, Texture, TextureView, UniformBuffer,
+    },
     renderer::{RenderDevice, RenderQueue},
     texture::{BevyDefault, CachedTexture, ColorAttachment, DepthAttachment, TextureCache},
     Render, RenderApp, RenderSet,
 };
 use bevy_app::{App, Plugin};
-use bevy_ecs::prelude::*;
+use bevy_ecs::{entity::EntityHashMap, prelude::*};
 use bevy_math::{Mat4, UVec4, Vec3, Vec4, Vec4Swizzles};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_transform::components::GlobalTransform;
@@ -31,8 +33,9 @@ use std::sync::{
     Arc,
 };
 use wgpu::{
-    Extent3d, RenderPassColorAttachment, RenderPassDepthStencilAttachment, StoreOp,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    BindingResource, BufferBinding, Extent3d, RenderPassColorAttachment,
+    RenderPassDepthStencilAttachment, StoreOp, TextureDescriptor, TextureDimension, TextureFormat,
+    TextureUsages,
 };
 
 pub const VIEW_TYPE_HANDLE: Handle<Shader> = Handle::weak_from_u128(15421373904451797197);
@@ -182,12 +185,33 @@ pub struct ViewUniform {
 
 #[derive(Resource, Default)]
 pub struct ViewUniforms {
-    pub uniforms: DynamicUniformBuffer<ViewUniform>,
+    pub uniforms: BufferVec<ViewUniform>,
+}
+
+impl ViewUniforms {
+    pub fn binding(&self) -> Option<BindingResource> {
+        Some(self.uniforms.buffer()?.as_entire_binding())
+    }
+}
+
+impl FromWorld for ViewUniforms {
+    fn from_world(world: &mut World) -> Self {
+        let mut buffer_usages = BufferUsages::UNIFORM;
+
+        let render_device = world.resource::<RenderDevice>();
+        if render_device.limits().max_storage_buffers_per_shader_stage > 0 {
+            buffer_usages |= BufferUsages::STORAGE;
+        }
+
+        Self {
+            uniforms: BufferVec::new(buffer_usages),
+        }
+    }
 }
 
 #[derive(Component)]
 pub struct ViewUniformOffset {
-    pub offset: u32,
+    pub buffer: UniformBuffer<u32>,
 }
 
 #[derive(Component)]
@@ -368,7 +392,7 @@ pub fn prepare_view_uniforms(
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     mut view_uniforms: ResMut<ViewUniforms>,
-    views: Query<(
+    mut views: Query<(
         Entity,
         Option<&ExtractedCamera>,
         &ExtractedView,
@@ -376,17 +400,19 @@ pub fn prepare_view_uniforms(
         Option<&TemporalJitter>,
         Option<&MipBias>,
         Option<&RenderLayers>,
+        Option<&mut ViewUniformOffset>,
     )>,
 ) {
-    let view_iter = views.iter();
-    let view_count = view_iter.len();
-    let Some(mut writer) =
-        view_uniforms
-            .uniforms
-            .get_writer(view_count, &render_device, &render_queue)
-    else {
-        return;
-    };
+    // let view_iter = views.iter();
+    // let view_count = view_iter.len();
+    // let Some(mut writer) =
+    //     view_uniforms
+    //         .uniforms
+    //         .get_writer(view_count, &render_device, &render_queue)
+    // else {
+    //     return;
+    // };
+    view_uniforms.uniforms.clear();
     for (
         entity,
         extracted_camera,
@@ -395,7 +421,8 @@ pub fn prepare_view_uniforms(
         temporal_jitter,
         mip_bias,
         maybe_layers,
-    ) in &views
+        view_uniform_offset,
+    ) in &mut views
     {
         let viewport = extracted_view.viewport.as_vec4();
         let unjittered_projection = extracted_view.projection;
@@ -422,29 +449,40 @@ pub fn prepare_view_uniforms(
             .map(|frustum| frustum.half_spaces.map(|h| h.normal_d()))
             .unwrap_or([Vec4::ZERO; 6]);
 
-        let view_uniforms = ViewUniformOffset {
-            offset: writer.write(&ViewUniform {
-                view_proj,
-                unjittered_view_proj: unjittered_projection * inverse_view,
-                inverse_view_proj: view * inverse_projection,
-                view,
-                inverse_view,
-                projection,
-                inverse_projection,
-                world_position: extracted_view.transform.translation(),
-                exposure: extracted_camera
-                    .map(|c| c.exposure)
-                    .unwrap_or_else(|| Exposure::default().exposure()),
-                viewport,
-                frustum,
-                color_grading: extracted_view.color_grading,
-                mip_bias: mip_bias.unwrap_or(&MipBias(0.0)).0,
-                render_layers: maybe_layers.copied().unwrap_or_default().bits(),
-            }),
-        };
+        let index = view_uniforms.uniforms.push(ViewUniform {
+            view_proj,
+            unjittered_view_proj: unjittered_projection * inverse_view,
+            inverse_view_proj: view * inverse_projection,
+            view,
+            inverse_view,
+            projection,
+            inverse_projection,
+            world_position: extracted_view.transform.translation(),
+            exposure: extracted_camera
+                .map(|c| c.exposure)
+                .unwrap_or_else(|| Exposure::default().exposure()),
+            viewport,
+            frustum,
+            color_grading: extracted_view.color_grading.clone().into(),
+            mip_bias: mip_bias.unwrap_or(&MipBias(0.0)).0,
+            render_layers: maybe_layers.copied().unwrap_or_default().bits(),
+        }) as u32;
 
-        commands.entity(entity).insert(view_uniforms);
+        if let Some(mut offset) = view_uniform_offset {
+            offset.buffer.set(index);
+            offset.buffer.write_buffer(&render_device, &render_queue);
+        } else {
+            let mut offset = ViewUniformOffset {
+                buffer: Default::default(),
+            };
+            offset.buffer.set(index);
+            offset.buffer.write_buffer(&render_device, &render_queue);
+            commands.entity(entity).insert(offset);
+        }
     }
+    view_uniforms
+        .uniforms
+        .write_buffer(&render_device, &render_queue);
 }
 
 #[derive(Clone)]

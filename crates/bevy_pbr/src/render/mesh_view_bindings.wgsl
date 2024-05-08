@@ -6,7 +6,7 @@
     globals::Globals,
 }
 
-@group(0) @binding(0) var<uniform> view: View;
+@group(0) @binding(0) var<storage> view: array<View>;
 @group(0) @binding(1) var<uniform> lights: types::Lights;
 #ifdef NO_CUBE_ARRAY_TEXTURES_SUPPORT
 @group(0) @binding(2) var point_shadow_textures: texture_depth_cube;
@@ -90,3 +90,8 @@
 
 @group(0) @binding(24) var view_transmission_texture: texture_2d<f32>;
 @group(0) @binding(25) var view_transmission_sampler: sampler;
+@group(0) @binding(26) var<uniform> view_offset: u32;
+
+fn get_view(view_index: u32) -> View {
+    return view[view_offset + view_index];
+}

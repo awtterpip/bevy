@@ -23,7 +23,7 @@ impl FromWorld for UiPipeline {
             "ui_view_layout",
             &BindGroupLayoutEntries::single(
                 ShaderStages::VERTEX_FRAGMENT,
-                uniform_buffer::<ViewUniform>(true),
+                uniform_buffer::<ViewUniform>(false),
             ),
         );
 

@@ -133,14 +133,17 @@ fn apply_normal_mapping(
 fn calculate_view(
     world_position: vec4<f32>,
     is_orthographic: bool,
+    view_index: u32,
 ) -> vec3<f32> {
     var V: vec3<f32>;
+    let view = view_bindings::get_view(view_index);
+
     if is_orthographic {
         // Orthographic view vector
-        V = normalize(vec3<f32>(view_bindings::view.view_proj[0].z, view_bindings::view.view_proj[1].z, view_bindings::view.view_proj[2].z));
+        V = normalize(vec3<f32>(view.view_proj[0].z, view.view_proj[1].z, view.view_proj[2].z));
     } else {
-        // Only valid for a perpective projection
-        V = normalize(view_bindings::view.world_position.xyz - world_position.xyz);
+        // Only valid for a perspective projection
+        V = normalize(view.world_position.xyz - world_position.xyz);
     }
     return V;
 }
@@ -148,6 +151,7 @@ fn calculate_view(
 #ifndef PREPASS_FRAGMENT
 fn apply_pbr_lighting(
     in: pbr_types::PbrInput,
+    view_index: u32
 ) -> vec4<f32> {
     var output_color: vec4<f32> = in.material.base_color;
 
@@ -194,13 +198,15 @@ fn apply_pbr_lighting(
     // Transmitted Light (Specular and Diffuse)
     var transmitted_light: vec3<f32> = vec3<f32>(0.0);
 
+    let view = view_bindings::get_view(view_index);
+
     let view_z = dot(vec4<f32>(
-        view_bindings::view.inverse_view[0].z,
-        view_bindings::view.inverse_view[1].z,
-        view_bindings::view.inverse_view[2].z,
-        view_bindings::view.inverse_view[3].z
+        view.inverse_view[0].z,
+        view.inverse_view[1].z,
+        view.inverse_view[2].z,
+        view.inverse_view[3].z
     ), in.world_position);
-    let cluster_index = clustering::fragment_cluster_index(in.frag_coord.xy, view_z, in.is_orthographic);
+    let cluster_index = clustering::fragment_cluster_index(in.frag_coord.xy, view_z, in.is_orthographic, view_index);
     let offset_and_counts = clustering::unpack_offset_and_counts(cluster_index);
 
     // Point lights (direct)
@@ -272,7 +278,7 @@ fn apply_pbr_lighting(
         // check the directional light render layers intersect the view render layers
         // note this is not necessary for point and spot lights, as the relevant lights are filtered in `assign_lights_to_clusters`
         let light = &view_bindings::lights.directional_lights[i];
-        if ((*light).render_layers & view_bindings::view.render_layers) == 0u {
+        if ((*light).render_layers & view.render_layers) == 0u {
             continue;
         }
 
@@ -440,7 +446,7 @@ fn apply_pbr_lighting(
 
     // Total light
     output_color = vec4<f32>(
-        view_bindings::view.exposure * (transmitted_light + direct_light + indirect_light + emissive_light),
+        view.exposure * (transmitted_light + direct_light + indirect_light + emissive_light),
         output_color.a
     );
 
@@ -456,7 +462,7 @@ fn apply_pbr_lighting(
 }
 #endif // PREPASS_FRAGMENT
 
-fn apply_fog(fog_params: mesh_view_types::Fog, input_color: vec4<f32>, fragment_world_position: vec3<f32>, view_world_position: vec3<f32>) -> vec4<f32> {
+fn apply_fog(fog_params: mesh_view_types::Fog, input_color: vec4<f32>, fragment_world_position: vec3<f32>, view_world_position: vec3<f32>, view_index: u32) -> vec4<f32> {
     let view_to_world = fragment_world_position.xyz - view_world_position.xyz;
 
     // `length()` is used here instead of just `view_to_world.z` since that produces more
@@ -464,6 +470,7 @@ fn apply_fog(fog_params: mesh_view_types::Fog, input_color: vec4<f32>, fragment_
     // fog shape that remains consistent with camera rotation, instead of a "linear"
     // fog shape that looks a bit fake
     let distance = length(view_to_world);
+    let view = view_bindings::get_view(view_index);
 
     var scattering = vec3<f32>(0.0);
     if fog_params.directional_light_color.a > 0.0 {
@@ -477,7 +484,7 @@ fn apply_fog(fog_params: mesh_view_types::Fog, input_color: vec4<f32>, fragment_
                     0.0
                 ),
                 fog_params.directional_light_exponent
-            ) * light.color.rgb * view_bindings::view.exposure;
+            ) * light.color.rgb * view.exposure;
         }
     }
 
@@ -551,16 +558,18 @@ fn premultiply_alpha(standard_material_flags: u32, color: vec4<f32>) -> vec4<f32
 fn main_pass_post_lighting_processing(
     pbr_input: pbr_types::PbrInput,
     input_color: vec4<f32>,
+    view_index: u32,
 ) -> vec4<f32> {
     var output_color = input_color;
+    let view = view_bindings::get_view(view_index);
 
     // fog
     if (view_bindings::fog.mode != mesh_view_types::FOG_MODE_OFF && (pbr_input.material.flags & pbr_types::STANDARD_MATERIAL_FLAGS_FOG_ENABLED_BIT) != 0u) {
-        output_color = apply_fog(view_bindings::fog, output_color, pbr_input.world_position.xyz, view_bindings::view.world_position.xyz);
+        output_color = apply_fog(view_bindings::fog, output_color, pbr_input.world_position.xyz, view.world_position.xyz, view_index);
     }
 
 #ifdef TONEMAP_IN_SHADER
-    output_color = tone_mapping(output_color, view_bindings::view.color_grading);
+    output_color = tone_mapping(output_color, view.color_grading);
 #ifdef DEBAND_DITHER
     var output_rgb = output_color.rgb;
     output_rgb = powsafe(output_rgb, 1.0 / 2.2);

@@ -76,12 +76,12 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         pbr_input.specular_occlusion =  saturate(pow(NdotV + ssao, exp2(-16.0 * roughness - 1.0)) - 1.0 + ssao);
 #endif // SCREEN_SPACE_AMBIENT_OCCLUSION
 
-        output_color = pbr_functions::apply_pbr_lighting(pbr_input);
+        output_color = pbr_functions::apply_pbr_lighting(pbr_input, 0u);
     } else {
         output_color = pbr_input.material.base_color;
     }
 
-    output_color = pbr_functions::main_pass_post_lighting_processing(pbr_input, output_color);
+    output_color = pbr_functions::main_pass_post_lighting_processing(pbr_input, output_color, 0u);
 
     return output_color;
 }

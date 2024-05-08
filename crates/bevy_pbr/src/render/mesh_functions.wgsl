@@ -24,9 +24,9 @@ fn mesh_position_local_to_world(model: mat4x4<f32>, vertex_position: vec4<f32>) 
 // NOTE: The intermediate world_position assignment is important
 // for precision purposes when using the 'equals' depth comparison
 // function.
-fn mesh_position_local_to_clip(model: mat4x4<f32>, vertex_position: vec4<f32>) -> vec4<f32> {
+fn mesh_position_local_to_clip(model: mat4x4<f32>, vertex_position: vec4<f32>, view_index: u32) -> vec4<f32> {
     let world_position = mesh_position_local_to_world(model, vertex_position);
-    return position_world_to_clip(world_position.xyz);
+    return position_world_to_clip(world_position.xyz, view_index);
 }
 
 fn mesh_normal_local_to_world(vertex_normal: vec3<f32>, instance_index: u32) -> vec3<f32> {

@@ -88,7 +88,7 @@ impl ViewNode for TonemappingNode {
                     None,
                     &tonemapping_pipeline.texture_bind_group,
                     &BindGroupEntries::sequential((
-                        view_uniforms,
+                        view_uniforms_resource.binding().unwrap(),
                         source,
                         &tonemapping_pipeline.sampler,
                         lut_bindings.0,
@@ -122,7 +122,7 @@ impl ViewNode for TonemappingNode {
             .begin_render_pass(&pass_descriptor);
 
         render_pass.set_pipeline(pipeline);
-        render_pass.set_bind_group(0, bind_group, &[view_uniform_offset.offset]);
+        render_pass.set_bind_group(0, bind_group, &[]);
         render_pass.draw(0..3, 0..1);
 
         Ok(())

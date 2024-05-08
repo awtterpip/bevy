@@ -5,7 +5,7 @@
     pbr_deferred_types as deferred_types,
     pbr_functions,
     rgb9e5,
-    mesh_view_bindings::view,
+    mesh_view_bindings::get_view,
     utils::{octahedral_encode, octahedral_decode},
     prepass_io::{VertexOutput, FragmentOutput},
     view_transformations::{position_ndc_to_world, frag_coord_to_ndc},
@@ -57,8 +57,10 @@ fn deferred_gbuffer_from_pbr_input(in: PbrInput) -> vec4<u32> {
 }
 
 // Creates a PbrInput from the deferred gbuffer.
-fn pbr_input_from_deferred_gbuffer(frag_coord: vec4<f32>, gbuffer: vec4<u32>) -> PbrInput {
+fn pbr_input_from_deferred_gbuffer(frag_coord: vec4<f32>, gbuffer: vec4<u32>, view_index: u32) -> PbrInput {
     var pbr = pbr_input_new();
+    
+    let view = get_view(view_index);
 
     let flags = deferred_types::unpack_flags(gbuffer.a);
     let deferred_flags = deferred_types::mesh_material_flags_from_deferred_flags(flags);
@@ -88,9 +90,9 @@ fn pbr_input_from_deferred_gbuffer(frag_coord: vec4<f32>, gbuffer: vec4<u32>) ->
     let octahedral_normal = deferred_types::unpack_24bit_normal(gbuffer.a);
     let N = octahedral_decode(octahedral_normal);
 
-    let world_position = vec4(position_ndc_to_world(frag_coord_to_ndc(frag_coord)), 1.0);
+    let world_position = vec4(position_ndc_to_world(frag_coord_to_ndc(frag_coord), view_index), 1.0);
     let is_orthographic = view.projection[3].w == 1.0;
-    let V = pbr_functions::calculate_view(world_position, is_orthographic);
+    let V = pbr_functions::calculate_view(world_position, is_orthographic, view_index);
 
     pbr.frag_coord = frag_coord;
     pbr.world_normal = N;

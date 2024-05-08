@@ -232,7 +232,7 @@ impl<M: UiMaterial> FromWorld for UiMaterialPipeline<M> {
             &BindGroupLayoutEntries::sequential(
                 ShaderStages::VERTEX_FRAGMENT,
                 (
-                    uniform_buffer::<ViewUniform>(true),
+                    uniform_buffer::<ViewUniform>(false),
                     uniform_buffer::<GlobalsUniform>(false),
                 ),
             ),
@@ -279,7 +279,7 @@ impl<P: PhaseItem, M: UiMaterial, const I: usize> RenderCommand<P> for SetMatUiV
         pass.set_bind_group(
             I,
             ui_meta.into_inner().view_bind_group.as_ref().unwrap(),
-            &[view_uniform.offset],
+            &[],
         );
         RenderCommandResult::Success
     }
@@ -450,10 +450,9 @@ pub fn prepare_uimaterial_nodes<M: UiMaterial>(
     mut phases: Query<&mut RenderPhase<TransparentUi>>,
     mut previous_len: Local<usize>,
 ) {
-    if let (Some(view_binding), Some(globals_binding)) = (
-        view_uniforms.uniforms.binding(),
-        globals_buffer.buffer.binding(),
-    ) {
+    if let (Some(view_binding), Some(globals_binding)) =
+        (view_uniforms.binding(), globals_buffer.buffer.binding())
+    {
         let mut batches: Vec<(Entity, UiMaterialBatch<M>)> = Vec::with_capacity(*previous_len);
 
         ui_meta.vertices.clear();

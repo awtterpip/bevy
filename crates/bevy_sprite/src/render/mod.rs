@@ -577,7 +577,7 @@ pub fn prepare_sprites(
         };
     }
 
-    if let Some(view_binding) = view_uniforms.uniforms.binding() {
+    if let Some(view_binding) = view_uniforms.binding() {
         let mut batches: Vec<(Entity, SpriteBatch)> = Vec::with_capacity(*previous_len);
 
         // Clear the sprite instances
@@ -760,7 +760,7 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetSpriteViewBindGroup<I
         pass.set_bind_group(
             I,
             sprite_meta.into_inner().view_bind_group.as_ref().unwrap(),
-            &[view_uniform.offset],
+            &[],
         );
         RenderCommandResult::Success
     }
