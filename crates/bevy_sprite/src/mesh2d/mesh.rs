@@ -27,9 +27,7 @@ use bevy_render::{
     texture::{
         BevyDefault, DefaultImageSampler, GpuImage, Image, ImageSampler, TextureFormatPixelInfo,
     },
-    view::{
-        ExtractedView, ViewTarget, ViewUniform, ViewUniformOffset, ViewUniforms, ViewVisibility,
-    },
+    view::{ExtractedView, ViewTarget, ViewUniform, ViewUniforms, ViewVisibility},
     Extract, ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_transform::components::GlobalTransform;
@@ -613,13 +611,13 @@ pub fn prepare_mesh2d_view_bind_groups(
 pub struct SetMesh2dViewBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetMesh2dViewBindGroup<I> {
     type Param = ();
-    type ViewQuery = (Read<ViewUniformOffset>, Read<Mesh2dViewBindGroup>);
+    type ViewQuery = Read<Mesh2dViewBindGroup>;
     type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
         _item: &P,
-        (view_uniform, mesh2d_view_bind_group): ROQueryItem<'w, Self::ViewQuery>,
+        mesh2d_view_bind_group: ROQueryItem<'w, Self::ViewQuery>,
         _view: Option<()>,
         _param: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,

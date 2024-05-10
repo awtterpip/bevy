@@ -32,8 +32,8 @@ use bevy_render::{
     renderer::{RenderDevice, RenderQueue},
     texture::{BevyDefault, DefaultImageSampler, ImageSampler, TextureFormatPixelInfo},
     view::{
-        prepare_view_targets, GpuCulling, RenderVisibilityRanges, ViewTarget, ViewUniformOffset,
-        ViewVisibility, VisibilityRange, VISIBILITY_RANGES_STORAGE_BUFFER_COUNT,
+        prepare_view_targets, GpuCulling, RenderVisibilityRanges, ViewTarget, ViewVisibility,
+        VisibilityRange, VISIBILITY_RANGES_STORAGE_BUFFER_COUNT,
     },
     Extract,
 };
@@ -1928,7 +1928,6 @@ pub struct SetMeshViewBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetMeshViewBindGroup<I> {
     type Param = ();
     type ViewQuery = (
-        Read<ViewUniformOffset>,
         Read<ViewLightsUniformOffset>,
         Read<ViewFogUniformOffset>,
         Read<ViewLightProbesUniformOffset>,
@@ -1939,7 +1938,7 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetMeshViewBindGroup<I> 
     #[inline]
     fn render<'w>(
         _item: &P,
-        (view_uniform, view_lights, view_fog, view_light_probes, mesh_view_bind_group): ROQueryItem<
+        (view_lights, view_fog, view_light_probes, mesh_view_bind_group): ROQueryItem<
             'w,
             Self::ViewQuery,
         >,

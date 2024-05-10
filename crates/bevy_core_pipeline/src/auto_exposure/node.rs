@@ -16,7 +16,7 @@ use bevy_render::{
     render_resource::*,
     renderer::RenderContext,
     texture::{FallbackImage, GpuImage},
-    view::{ExtractedView, ViewTarget, ViewUniform, ViewUniformOffset, ViewUniforms},
+    view::{ExtractedView, ViewTarget, ViewUniform, ViewUniforms},
 };
 
 #[derive(RenderLabel, Debug, Clone, Hash, PartialEq, Eq)]
@@ -24,7 +24,6 @@ pub struct AutoExposure;
 
 pub struct AutoExposureNode {
     query: QueryState<(
-        Read<ViewUniformOffset>,
         Read<ViewTarget>,
         Read<ViewAutoExposurePipeline>,
         Read<ExtractedView>,
@@ -63,14 +62,10 @@ impl Node for AutoExposureNode {
 
         let auto_exposure_buffers = world.resource::<AutoExposureBuffers>();
 
-        let (
-            Ok((view_uniform_offset, view_target, auto_exposure, view)),
-            Some(auto_exposure_buffers),
-        ) = (
+        let (Ok((view_target, auto_exposure, view)), Some(auto_exposure_buffers)) = (
             self.query.get_manual(world, view_entity),
             auto_exposure_buffers.buffers.get(&view_entity),
-        )
-        else {
+        ) else {
             return Ok(());
         };
 

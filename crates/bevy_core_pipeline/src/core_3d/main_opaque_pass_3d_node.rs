@@ -10,7 +10,7 @@ use bevy_render::{
     render_phase::{BinnedRenderPhase, TrackedRenderPass},
     render_resource::{CommandEncoderDescriptor, PipelineCache, RenderPassDescriptor, StoreOp},
     renderer::RenderContext,
-    view::{ViewDepthTexture, ViewTarget, ViewUniformOffset},
+    view::{ViewDepthTexture, ViewTarget},
 };
 #[cfg(feature = "trace")]
 use bevy_utils::tracing::info_span;
@@ -31,7 +31,6 @@ impl ViewNode for MainOpaquePass3dNode {
         &'static ViewDepthTexture,
         Option<&'static SkyboxPipelineId>,
         Option<&'static SkyboxBindGroup>,
-        &'static ViewUniformOffset,
     );
 
     fn run<'w>(
@@ -46,7 +45,6 @@ impl ViewNode for MainOpaquePass3dNode {
             depth,
             skybox_pipeline,
             skybox_bind_group,
-            view_uniform_offset,
         ): QueryItem<'w, Self::ViewQuery>,
         world: &'w World,
     ) -> Result<(), NodeRunError> {

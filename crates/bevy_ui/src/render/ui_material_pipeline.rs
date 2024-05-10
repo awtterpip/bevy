@@ -258,12 +258,12 @@ pub type DrawUiMaterial<M> = (
 pub struct SetMatUiViewBindGroup<M: UiMaterial, const I: usize>(PhantomData<M>);
 impl<P: PhaseItem, M: UiMaterial, const I: usize> RenderCommand<P> for SetMatUiViewBindGroup<M, I> {
     type Param = SRes<UiMaterialMeta<M>>;
-    type ViewQuery = Read<ViewUniformOffset>;
+    type ViewQuery = ();
     type ItemQuery = ();
 
     fn render<'w>(
         _item: &P,
-        view_uniform: &'w ViewUniformOffset,
+        _: (),
         _entity: Option<()>,
         ui_meta: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,

@@ -11,10 +11,7 @@ use bevy_core_pipeline::{core_3d::CORE_3D_DEPTH_FORMAT, prelude::Camera3d};
 use bevy_core_pipeline::{deferred::*, prepass::*};
 use bevy_ecs::{
     prelude::*,
-    system::{
-        lifetimeless::{Read, SRes},
-        SystemParamItem,
-    },
+    system::{lifetimeless::Read, SystemParamItem},
 };
 use bevy_math::{Affine3A, Mat4};
 use bevy_render::{
@@ -736,12 +733,6 @@ pub fn prepare_prepass_view_bind_group<M: Material>(
         for (entity, view_offset, maybe_previous_view_offset) in views.iter() {
             let mut prepass_view_bind_group = PrepassViewBindGroup::default();
 
-            let no_motion_vector_entries = BindGroupEntries::with_indices((
-                (0, view_binding.clone()),
-                (1, globals_binding.clone()),
-                (27, view_offset.buffer.binding().unwrap()),
-            ));
-
             prepass_view_bind_group.no_motion_vectors = Some(render_device.create_bind_group(
                 "prepass_view_no_motion_vectors_bind_group",
                 &prepass_pipeline.view_layout_no_motion_vectors,
@@ -993,7 +984,6 @@ pub struct SetPrepassViewBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetPrepassViewBindGroup<I> {
     type Param = ();
     type ViewQuery = (
-        Read<ViewUniformOffset>,
         Read<PrepassViewBindGroup>,
         Has<MotionVectorPrepass>,
         Option<Read<PreviousViewUniformOffset>>,
@@ -1004,7 +994,6 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetPrepassViewBindGroup<
     fn render<'w>(
         _item: &P,
         (
-            view_uniform_offset,
             prepass_view_bind_group,
             has_motion_vector_prepass,
             previous_view_uniform_offset,
@@ -1014,7 +1003,7 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetPrepassViewBindGroup<
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         match previous_view_uniform_offset {
-            Some(previous_view_uniform_offset) if has_motion_vector_prepass => {
+            Some(_) if has_motion_vector_prepass => {
                 pass.set_bind_group(
                     I,
                     prepass_view_bind_group.motion_vectors.as_ref().unwrap(),

@@ -31,8 +31,7 @@ use bevy_render::{
         BevyDefault, DefaultImageSampler, GpuImage, Image, ImageSampler, TextureFormatPixelInfo,
     },
     view::{
-        ExtractedView, Msaa, ViewTarget, ViewUniform, ViewUniformOffset, ViewUniforms,
-        ViewVisibility, VisibleEntities,
+        ExtractedView, Msaa, ViewTarget, ViewUniform, ViewUniforms, ViewVisibility, VisibleEntities,
     },
     Extract,
 };
@@ -721,12 +720,12 @@ pub type DrawSprite = (
 pub struct SetSpriteViewBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetSpriteViewBindGroup<I> {
     type Param = SRes<SpriteMeta>;
-    type ViewQuery = Read<ViewUniformOffset>;
+    type ViewQuery = ();
     type ItemQuery = ();
 
     fn render<'w>(
         _item: &P,
-        view_uniform: &'_ ViewUniformOffset,
+        _view_uniform: (),
         _entity: Option<()>,
         sprite_meta: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,

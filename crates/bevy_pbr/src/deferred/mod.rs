@@ -23,7 +23,7 @@ use bevy_render::{
     render_resource::*,
     renderer::{RenderContext, RenderDevice},
     texture::BevyDefault,
-    view::{ExtractedView, ViewTarget, ViewUniformOffset},
+    view::{ExtractedView, ViewTarget},
     Render, RenderApp, RenderSet,
 };
 
@@ -143,7 +143,6 @@ pub struct DeferredOpaquePass3dPbrLightingNode;
 
 impl ViewNode for DeferredOpaquePass3dPbrLightingNode {
     type ViewQuery = (
-        &'static ViewUniformOffset,
         &'static ViewLightsUniformOffset,
         &'static ViewFogUniformOffset,
         &'static ViewLightProbesUniformOffset,
@@ -158,7 +157,6 @@ impl ViewNode for DeferredOpaquePass3dPbrLightingNode {
         _graph_context: &mut RenderGraphContext,
         render_context: &mut RenderContext,
         (
-            view_uniform_offset,
             view_lights_offset,
             view_fog_offset,
             view_light_probes_offset,

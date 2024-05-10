@@ -15,9 +15,7 @@ use crate::{
     primitives::Frustum,
     render_asset::RenderAssets,
     render_phase::ViewRangefinder3d,
-    render_resource::{
-        BufferVec, DynamicUniformBuffer, ShaderType, Texture, TextureView, UniformBuffer,
-    },
+    render_resource::{BufferVec, ShaderType, Texture, TextureView, UniformBuffer},
     renderer::{RenderDevice, RenderQueue},
     texture::{
         BevyDefault, CachedTexture, ColorAttachment, DepthAttachment, GpuImage, TextureCache,
@@ -25,7 +23,7 @@ use crate::{
     Render, RenderApp, RenderSet,
 };
 use bevy_app::{App, Plugin};
-use bevy_ecs::{entity::EntityHashMap, prelude::*};
+use bevy_ecs::prelude::*;
 use bevy_math::{mat3, vec2, vec3, Mat3, Mat4, UVec4, Vec2, Vec3, Vec4, Vec4Swizzles};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_transform::components::GlobalTransform;
@@ -38,7 +36,7 @@ use std::{
     },
 };
 use wgpu::{
-    BindingResource, BufferBinding, BufferUsages, Extent3d, RenderPassColorAttachment,
+    BindingResource, BufferUsages, Extent3d, RenderPassColorAttachment,
     RenderPassDepthStencilAttachment, StoreOp, TextureDescriptor, TextureDimension, TextureFormat,
     TextureUsages,
 };

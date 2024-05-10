@@ -29,7 +29,7 @@ use bevy_render::{
     },
     renderer::{RenderAdapter, RenderContext, RenderDevice, RenderQueue},
     texture::{CachedTexture, TextureCache},
-    view::{Msaa, ViewUniform, ViewUniformOffset, ViewUniforms},
+    view::{Msaa, ViewUniform, ViewUniforms},
     Extract, ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_utils::{
@@ -197,14 +197,13 @@ impl ViewNode for SsaoNode {
         &'static ExtractedCamera,
         &'static SsaoPipelineId,
         &'static SsaoBindGroups,
-        &'static ViewUniformOffset,
     );
 
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
-        (camera, pipeline_id, bind_groups, view_uniform_offset): QueryItem<Self::ViewQuery>,
+        (camera, pipeline_id, bind_groups): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
         let pipelines = world.resource::<SsaoPipelines>();

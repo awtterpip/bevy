@@ -33,7 +33,7 @@ use bevy_render::{
         SpecializedComputePipeline, SpecializedComputePipelines,
     },
     renderer::{RenderContext, RenderDevice, RenderQueue},
-    view::{GpuCulling, ViewUniform, ViewUniformOffset, ViewUniforms},
+    view::{GpuCulling, ViewUniform, ViewUniforms},
     Render, RenderApp, RenderSet,
 };
 use bevy_utils::tracing::warn;
@@ -65,12 +65,7 @@ pub struct GpuMeshPreprocessPlugin {
 
 /// The render node for the mesh uniform building pass.
 pub struct GpuPreprocessNode {
-    view_query: QueryState<(
-        Entity,
-        Read<PreprocessBindGroup>,
-        Read<ViewUniformOffset>,
-        Has<GpuCulling>,
-    )>,
+    view_query: QueryState<(Entity, Read<PreprocessBindGroup>, Has<GpuCulling>)>,
 }
 
 /// The compute shader pipelines for the mesh uniform building pass.
@@ -194,9 +189,7 @@ impl Node for GpuPreprocessNode {
                 });
 
         // Run the compute passes.
-        for (view, bind_group, view_uniform_offset, gpu_culling) in
-            self.view_query.iter_manual(world)
-        {
+        for (view, bind_group, gpu_culling) in self.view_query.iter_manual(world) {
             // Grab the index buffer for this view.
             let Some(index_buffer) = index_buffers.get(&view) else {
                 warn!("The preprocessing index buffer wasn't present");
@@ -226,7 +219,7 @@ impl Node for GpuPreprocessNode {
 
             compute_pass.set_pipeline(preprocess_pipeline);
 
-            let mut dynamic_offsets: SmallVec<[u32; 1]> = smallvec![];
+            let dynamic_offsets: SmallVec<[u32; 1]> = smallvec![];
 
             compute_pass.set_bind_group(0, &bind_group.0, &dynamic_offsets);
 

@@ -157,12 +157,12 @@ pub type DrawUi = (
 pub struct SetUiViewBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiViewBindGroup<I> {
     type Param = SRes<UiMeta>;
-    type ViewQuery = Read<ViewUniformOffset>;
+    type ViewQuery = ();
     type ItemQuery = ();
 
     fn render<'w>(
         _item: &P,
-        view_uniform: &'w ViewUniformOffset,
+        _: (),
         _entity: Option<()>,
         ui_meta: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,

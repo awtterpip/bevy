@@ -12,7 +12,7 @@ use bevy_render::{
     },
     renderer::RenderContext,
     texture::{FallbackImage, GpuImage},
-    view::{ViewTarget, ViewUniformOffset, ViewUniforms},
+    view::{ViewTarget, ViewUniforms},
 };
 
 use super::{get_lut_bindings, Tonemapping};
@@ -25,7 +25,6 @@ pub struct TonemappingNode {
 
 impl ViewNode for TonemappingNode {
     type ViewQuery = (
-        &'static ViewUniformOffset,
         &'static ViewTarget,
         &'static ViewTonemappingPipeline,
         &'static Tonemapping,
@@ -35,9 +34,7 @@ impl ViewNode for TonemappingNode {
         &self,
         _graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
-        (view_uniform_offset, target, view_tonemapping_pipeline, tonemapping): QueryItem<
-            Self::ViewQuery,
-        >,
+        (target, view_tonemapping_pipeline, tonemapping): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
         let pipeline_cache = world.resource::<PipelineCache>();
