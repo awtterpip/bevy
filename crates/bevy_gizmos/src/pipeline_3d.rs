@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use crate::{
     config::GizmoMeshConfig, line_gizmo_vertex_buffer_layouts, DrawLineGizmo, GizmoRenderSystem,
     LineGizmo, LineGizmoUniformBindgroupLayout, SetLineGizmoBindGroup, LINE_SHADER_HANDLE,
@@ -91,8 +93,15 @@ impl SpecializedRenderPipeline for LineGizmoPipeline {
             "SIXTEEN_BYTE_ALIGNMENT".into(),
         ];
 
+        let mut multiview = None;
+
         if key.perspective {
             shader_defs.push("PERSPECTIVE".into());
+        }
+
+        if key.view_key.view_count() > 1 {
+            multiview = Some(NonZeroU32::new(key.view_key.view_count()).unwrap());
+            shader_defs.push("MULTIVIEW".into());
         }
 
         let format = if key.view_key.contains(MeshPipelineKey::HDR) {
@@ -141,7 +150,7 @@ impl SpecializedRenderPipeline for LineGizmoPipeline {
             },
             label: Some("LineGizmo Pipeline".into()),
             push_constant_ranges: vec![],
-            multiview: None,
+            multiview,
         }
     }
 }

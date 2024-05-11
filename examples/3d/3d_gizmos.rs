@@ -9,6 +9,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .init_gizmo_group::<MyRoundGizmos>()
         .add_systems(Startup, setup)
+        .insert_resource(Msaa::Off)
         .add_systems(Update, rotate_camera)
         .add_systems(Update, (draw_example_collection, update_config))
         .run();
@@ -25,6 +26,13 @@ fn setup(
 ) {
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0., 1.5, 6.).looking_at(Vec3::ZERO, Vec3::Y),
+        camera: Camera {
+            views: vec![
+                Transform::from_xyz(-1.0, 0.0, 0.0),
+                // Transform::from_xyz(1.0, 0.0, 0.0),
+            ],
+            ..default()
+        },
         ..default()
     });
     // plane

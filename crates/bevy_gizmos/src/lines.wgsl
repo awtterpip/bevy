@@ -1,7 +1,8 @@
 // TODO use common view binding
 #import bevy_render::view::View
 
-@group(0) @binding(0) var<uniform> view: View;
+@group(0) @binding(0) var<storage> views: array<View>;
+@group(0) @binding(26) var<uniform> view_offset: u32;
 
 
 struct LineGizmoUniform {
@@ -31,7 +32,16 @@ struct VertexOutput {
 const EPSILON: f32 = 4.88e-04;
 
 @vertex
-fn vertex(vertex: VertexInput) -> VertexOutput {
+fn vertex(
+    vertex: VertexInput,
+#ifdef MULTIVIEW
+    @builtin(view_index) view_index: i32,
+#endif
+) -> VertexOutput {
+#ifndef MULTIVIEW
+    let view_index: i32 = 0i;
+#endif
+    let view = views[view_offset + u32(view_index)];
     var positions = array<vec3<f32>, 6>(
         vec3(0., -0.5, 0.),
         vec3(0., -0.5, 1.),
