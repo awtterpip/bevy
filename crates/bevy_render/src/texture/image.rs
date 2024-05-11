@@ -557,6 +557,12 @@ impl Image {
         self.texture_descriptor.size.height
     }
 
+    /// Returns the depth of a 3D image.
+    #[inline]
+    pub fn depth(&self) -> u32 {
+        self.texture_descriptor.size.depth_or_array_layers
+    }
+
     /// Returns the aspect ratio (width / height) of a 2D image.
     #[inline]
     pub fn aspect_ratio(&self) -> AspectRatio {
@@ -823,6 +829,7 @@ pub struct GpuImage {
     pub texture_format: TextureFormat,
     pub sampler: Sampler,
     pub size: UVec2,
+    pub depth: u32,
     pub mip_level_count: u32,
 }
 
@@ -858,6 +865,7 @@ impl RenderAsset for GpuImage {
         );
 
         let size = image.size();
+        let depth = image.depth();
         let texture_view = texture.create_view(
             image
                 .texture_view_descriptor
@@ -878,6 +886,7 @@ impl RenderAsset for GpuImage {
             texture_format: image.texture_descriptor.format,
             sampler,
             size,
+            depth,
             mip_level_count: image.texture_descriptor.mip_level_count,
         })
     }

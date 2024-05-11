@@ -172,6 +172,16 @@ impl Msaa {
 }
 
 #[derive(Component)]
+pub struct ExtractedViews {
+    pub views: Vec<ExtractedView>,
+    pub blit_view_override: u32,
+    pub hdr: bool,
+    // uvec4(origin.x, origin.y, width, height)
+    pub viewport: UVec4,
+    pub color_grading: ColorGrading,
+}
+
+#[derive(Clone)]
 pub struct ExtractedView {
     pub projection: Mat4,
     pub transform: GlobalTransform,
@@ -179,10 +189,6 @@ pub struct ExtractedView {
     // `projection` and `transform` fields, which can be helpful in cases where numerical
     // stability matters and there is a more direct way to derive the view-projection matrix.
     pub view_projection: Option<Mat4>,
-    pub hdr: bool,
-    // uvec4(origin.x, origin.y, width, height)
-    pub viewport: UVec4,
-    pub color_grading: ColorGrading,
 }
 
 impl ExtractedView {
@@ -457,11 +463,14 @@ pub struct ViewUniformOffset {
 pub struct ViewTarget {
     main_textures: MainTargetTextures,
     main_texture_format: TextureFormat,
+    main_texture_depth: u32,
     /// 0 represents `main_textures.a`, 1 represents `main_textures.b`
     /// This is shared across view targets with the same render target
     main_texture: Arc<AtomicUsize>,
     out_texture: TextureView,
     out_texture_format: TextureFormat,
+    out_texture_depth: u32,
+    out_texture_view_override: u32,
 }
 
 pub struct PostProcessWrite<'a> {
@@ -644,6 +653,11 @@ impl ViewTarget {
         self.main_texture_format
     }
 
+    #[inline]
+    pub fn main_texture_depth(&self) -> u32 {
+        self.main_texture_depth
+    }
+
     /// Returns `true` if and only if the main texture is [`Self::TEXTURE_FORMAT_HDR`]
     #[inline]
     pub fn is_hdr(&self) -> bool {
@@ -660,6 +674,16 @@ impl ViewTarget {
     #[inline]
     pub fn out_texture_format(&self) -> TextureFormat {
         self.out_texture_format
+    }
+
+    #[inline]
+    pub fn out_texture_depth(&self) -> u32 {
+        self.out_texture_depth
+    }
+
+    #[inline]
+    pub fn blit_view_override(&self) -> u32 {
+        self.out_texture_view_override
     }
 
     /// This will start a new "post process write", which assumes that the caller
@@ -719,7 +743,7 @@ pub fn prepare_view_uniforms(
     mut views: Query<(
         Entity,
         Option<&ExtractedCamera>,
-        &ExtractedView,
+        &ExtractedViews,
         Option<&Frustum>,
         Option<&TemporalJitter>,
         Option<&MipBias>,
@@ -740,7 +764,7 @@ pub fn prepare_view_uniforms(
     for (
         entity,
         extracted_camera,
-        extracted_view,
+        extracted_views,
         frustum,
         temporal_jitter,
         mip_bias,
@@ -748,60 +772,70 @@ pub fn prepare_view_uniforms(
         view_uniform_offset,
     ) in &mut views
     {
-        let viewport = extracted_view.viewport.as_vec4();
-        let unjittered_projection = extracted_view.projection;
-        let mut projection = unjittered_projection;
+        let mut index = None;
 
-        if let Some(temporal_jitter) = temporal_jitter {
-            temporal_jitter.jitter_projection(&mut projection, viewport.zw());
+        for extracted_view in &extracted_views.views {
+            let viewport = extracted_views.viewport.as_vec4();
+            let unjittered_projection = extracted_view.projection;
+            let mut projection = unjittered_projection;
+
+            if let Some(temporal_jitter) = temporal_jitter {
+                temporal_jitter.jitter_projection(&mut projection, viewport.zw());
+            }
+
+            let inverse_projection = projection.inverse();
+            let view = extracted_view.transform.compute_matrix();
+            let inverse_view = view.inverse();
+
+            let view_proj = if temporal_jitter.is_some() {
+                projection * inverse_view
+            } else {
+                extracted_view
+                    .view_projection
+                    .unwrap_or_else(|| projection * inverse_view)
+            };
+
+            // Map Frustum type to shader array<vec4<f32>, 6>
+            let frustum = frustum
+                .map(|frustum| frustum.half_spaces.map(|h| h.normal_d()))
+                .unwrap_or([Vec4::ZERO; 6]);
+
+            let i = view_uniforms.uniforms.push(ViewUniform {
+                view_proj,
+                unjittered_view_proj: unjittered_projection * inverse_view,
+                inverse_view_proj: view * inverse_projection,
+                view,
+                inverse_view,
+                projection,
+                inverse_projection,
+                world_position: extracted_view.transform.translation(),
+                exposure: extracted_camera
+                    .map(|c| c.exposure)
+                    .unwrap_or_else(|| Exposure::default().exposure()),
+                viewport,
+                frustum,
+                color_grading: extracted_views.color_grading.clone().into(),
+                mip_bias: mip_bias.unwrap_or(&MipBias(0.0)).0,
+                render_layers: maybe_layers.copied().unwrap_or_default().bits(),
+            }) as u32;
+
+            if index.is_none() {
+                index = Some(i);
+            }
         }
 
-        let inverse_projection = projection.inverse();
-        let view = extracted_view.transform.compute_matrix();
-        let inverse_view = view.inverse();
-
-        let view_proj = if temporal_jitter.is_some() {
-            projection * inverse_view
-        } else {
-            extracted_view
-                .view_projection
-                .unwrap_or_else(|| projection * inverse_view)
-        };
-
-        // Map Frustum type to shader array<vec4<f32>, 6>
-        let frustum = frustum
-            .map(|frustum| frustum.half_spaces.map(|h| h.normal_d()))
-            .unwrap_or([Vec4::ZERO; 6]);
-
-        let index = view_uniforms.uniforms.push(ViewUniform {
-            view_proj,
-            unjittered_view_proj: unjittered_projection * inverse_view,
-            inverse_view_proj: view * inverse_projection,
-            view,
-            inverse_view,
-            projection,
-            inverse_projection,
-            world_position: extracted_view.transform.translation(),
-            exposure: extracted_camera
-                .map(|c| c.exposure)
-                .unwrap_or_else(|| Exposure::default().exposure()),
-            viewport,
-            frustum,
-            color_grading: extracted_view.color_grading.clone().into(),
-            mip_bias: mip_bias.unwrap_or(&MipBias(0.0)).0,
-            render_layers: maybe_layers.copied().unwrap_or_default().bits(),
-        }) as u32;
-
-        if let Some(mut offset) = view_uniform_offset {
-            offset.buffer.set(index);
-            offset.buffer.write_buffer(&render_device, &render_queue);
-        } else {
-            let mut offset = ViewUniformOffset {
-                buffer: Default::default(),
-            };
-            offset.buffer.set(index);
-            offset.buffer.write_buffer(&render_device, &render_queue);
-            commands.entity(entity).insert(offset);
+        if let Some(index) = index {
+            if let Some(mut offset) = view_uniform_offset {
+                offset.buffer.set(index);
+                offset.buffer.write_buffer(&render_device, &render_queue);
+            } else {
+                let mut offset = ViewUniformOffset {
+                    buffer: Default::default(),
+                };
+                offset.buffer.set(index);
+                offset.buffer.write_buffer(&render_device, &render_queue);
+                commands.entity(entity).insert(offset);
+            }
         }
     }
     view_uniforms
@@ -830,25 +864,26 @@ pub fn prepare_view_targets(
     cameras: Query<(
         Entity,
         &ExtractedCamera,
-        &ExtractedView,
+        &ExtractedViews,
         &CameraMainTextureUsages,
     )>,
     manual_texture_views: Res<ManualTextureViews>,
 ) {
     let mut textures = HashMap::default();
-    for (entity, camera, view, texture_usage) in cameras.iter() {
+    for (entity, camera, views, texture_usage) in cameras.iter() {
         if let (Some(target_size), Some(target)) = (camera.physical_target_size, &camera.target) {
-            if let (Some(out_texture_view), Some(out_texture_format)) = (
+            if let (Some(out_texture_view), Some(out_texture_format), Some(out_texture_depth)) = (
                 target.get_texture_view(&windows, &images, &manual_texture_views),
                 target.get_texture_format(&windows, &images, &manual_texture_views),
+                target.get_texture_depth(&images, &manual_texture_views),
             ) {
                 let size = Extent3d {
                     width: target_size.x,
                     height: target_size.y,
-                    depth_or_array_layers: 1,
+                    depth_or_array_layers: views.views.len() as u32,
                 };
 
-                let main_texture_format = if view.hdr {
+                let main_texture_format = if views.hdr {
                     ViewTarget::TEXTURE_FORMAT_HDR
                 } else {
                     TextureFormat::bevy_default()
@@ -861,7 +896,7 @@ pub fn prepare_view_targets(
                 };
 
                 let (a, b, sampled, main_texture) = textures
-                    .entry((camera.target.clone(), view.hdr))
+                    .entry((camera.target.clone(), views.hdr))
                     .or_insert_with(|| {
                         let descriptor = TextureDescriptor {
                             label: None,
@@ -924,9 +959,12 @@ pub fn prepare_view_targets(
                 commands.entity(entity).insert(ViewTarget {
                     main_texture: main_textures.main_texture.clone(),
                     main_textures,
+                    main_texture_depth: size.depth_or_array_layers,
                     main_texture_format,
                     out_texture: out_texture_view.clone(),
                     out_texture_format: out_texture_format.add_srgb_suffix(),
+                    out_texture_depth,
+                    out_texture_view_override: views.blit_view_override,
                 });
             }
         }

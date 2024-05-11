@@ -27,7 +27,9 @@ use bevy_render::{
     },
     renderer::RenderDevice,
     texture::{FallbackImage, GpuImage},
-    view::{ExtractedView, InheritedVisibility, Msaa, ViewVisibility, Visibility, VisibleEntities},
+    view::{
+        ExtractedViews, InheritedVisibility, Msaa, ViewVisibility, Visibility, VisibleEntities,
+    },
     Extract, ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_transform::components::{GlobalTransform, Transform};
@@ -375,7 +377,7 @@ pub fn queue_material2d_meshes<M: Material2d>(
     mut render_mesh_instances: ResMut<RenderMesh2dInstances>,
     render_material_instances: Res<RenderMaterial2dInstances<M>>,
     mut views: Query<(
-        &ExtractedView,
+        &ExtractedViews,
         &VisibleEntities,
         Option<&Tonemapping>,
         Option<&DebandDither>,

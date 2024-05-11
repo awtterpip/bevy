@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, num::NonZeroU32};
 
 use bevy_asset::{load_internal_asset, AssetId};
 use bevy_core_pipeline::{
@@ -1108,6 +1108,7 @@ impl FromWorld for MeshPipeline {
                 texture_format: image.texture_descriptor.format,
                 sampler,
                 size: image.size(),
+                depth: image.depth(),
                 mip_level_count: image.texture_descriptor.mip_level_count,
             }
         };
@@ -1359,6 +1360,7 @@ bitflags::bitflags! {
 
         // Bitfields
         const MSAA_RESERVED_BITS                = Self::MSAA_MASK_BITS << Self::MSAA_SHIFT_BITS;
+        const MULTIVIEW_RESERVED_BITS           = Self::MULTIVIEW_MASK_BITS << Self::MULTIVIEW_SHIFT_BITS;
         const BLEND_RESERVED_BITS               = Self::BLEND_MASK_BITS << Self::BLEND_SHIFT_BITS; // ← Bitmask reserving bits for the blend state
         const BLEND_OPAQUE                      = 0 << Self::BLEND_SHIFT_BITS;                     // ← Values are just sequential within the mask
         const BLEND_PREMULTIPLIED_ALPHA         = 1 << Self::BLEND_SHIFT_BITS;                     // ← As blend states is on 3 bits, it can range from 0 to 7
@@ -1402,8 +1404,13 @@ impl MeshPipelineKey {
     const MSAA_MASK_BITS: u64 = 0b111;
     const MSAA_SHIFT_BITS: u64 = Self::LAST_FLAG.bits().trailing_zeros() as u64 + 1;
 
+    const MULTIVIEW_MASK_BITS: u64 = 0b1111;
+    const MULTIVIEW_SHIFT_BITS: u64 =
+        Self::MSAA_MASK_BITS.count_ones() as u64 + Self::MSAA_SHIFT_BITS;
+
     const BLEND_MASK_BITS: u64 = 0b111;
-    const BLEND_SHIFT_BITS: u64 = Self::MSAA_MASK_BITS.count_ones() as u64 + Self::MSAA_SHIFT_BITS;
+    const BLEND_SHIFT_BITS: u64 =
+        Self::MULTIVIEW_MASK_BITS.count_ones() as u64 + Self::MULTIVIEW_SHIFT_BITS;
 
     const TONEMAP_METHOD_MASK_BITS: u64 = 0b111;
     const TONEMAP_METHOD_SHIFT_BITS: u64 =
@@ -1428,6 +1435,12 @@ impl MeshPipelineKey {
         Self::from_bits_retain(msaa_bits)
     }
 
+    pub fn from_view_count(view_count: u8) -> Self {
+        let view_count_bits =
+            (view_count as u64 & Self::MULTIVIEW_MASK_BITS) << Self::MULTIVIEW_SHIFT_BITS;
+        Self::from_bits_retain(view_count_bits)
+    }
+
     pub fn from_hdr(hdr: bool) -> Self {
         if hdr {
             MeshPipelineKey::HDR
@@ -1438,6 +1451,10 @@ impl MeshPipelineKey {
 
     pub fn msaa_samples(&self) -> u32 {
         1 << ((self.bits() >> Self::MSAA_SHIFT_BITS) & Self::MSAA_MASK_BITS)
+    }
+
+    pub fn view_count(&self) -> u32 {
+        ((self.bits() >> Self::MULTIVIEW_SHIFT_BITS) & Self::MULTIVIEW_MASK_BITS) as _
     }
 
     pub fn from_primitive_topology(primitive_topology: PrimitiveTopology) -> Self {
@@ -1525,6 +1542,7 @@ impl SpecializedMeshPipeline for MeshPipeline {
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
         let mut shader_defs = Vec::new();
         let mut vertex_attributes = Vec::new();
+        let mut multiview = None;
 
         // Let the shader code know that it's running in a mesh pipeline.
         shader_defs.push("MESH_PIPELINE".into());
@@ -1570,6 +1588,11 @@ impl SpecializedMeshPipeline for MeshPipeline {
         if key.msaa_samples() > 1 {
             shader_defs.push("MULTISAMPLED".into());
         };
+
+        if key.view_count() > 1 {
+            shader_defs.push("MULTIVIEW".into());
+            multiview = Some(NonZeroU32::new(key.view_count()).unwrap());
+        }
 
         bind_group_layout.push(setup_morph_and_skinning_defs(
             &self.mesh_layouts,
@@ -1823,7 +1846,7 @@ impl SpecializedMeshPipeline for MeshPipeline {
                 alpha_to_coverage_enabled,
             },
             label: Some(label),
-            multiview: None,
+            multiview,
         })
     }
 }

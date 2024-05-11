@@ -11,7 +11,7 @@ use bevy_render::render_resource::binding_types::{
 };
 use bevy_render::renderer::RenderDevice;
 use bevy_render::texture::{CompressedImageFormats, GpuImage, Image, ImageSampler, ImageType};
-use bevy_render::view::{ExtractedView, ViewTarget, ViewUniform};
+use bevy_render::view::{ExtractedViews, ViewTarget, ViewUniform};
 use bevy_render::{camera::Camera, texture::FallbackImage};
 use bevy_render::{render_resource::*, Render, RenderApp, RenderSet};
 #[cfg(not(feature = "tonemapping_luts"))]
@@ -331,7 +331,7 @@ pub fn prepare_view_tonemapping_pipelines(
     view_targets: Query<
         (
             Entity,
-            &ExtractedView,
+            &ExtractedViews,
             Option<&Tonemapping>,
             Option<&DebandDither>,
         ),

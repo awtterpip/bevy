@@ -31,7 +31,7 @@ use bevy_render::{
     render_resource::*,
     renderer::RenderDevice,
     texture::FallbackImage,
-    view::{ExtractedView, Msaa, RenderVisibilityRanges, VisibleEntities, WithMesh},
+    view::{ExtractedViews, Msaa, RenderVisibilityRanges, VisibleEntities, WithMesh},
 };
 use bevy_utils::tracing::error;
 use std::marker::PhantomData;
@@ -531,7 +531,7 @@ pub fn queue_material_meshes<M: Material>(
     render_lightmaps: Res<RenderLightmaps>,
     render_visibility_ranges: Res<RenderVisibilityRanges>,
     mut views: Query<(
-        &ExtractedView,
+        &ExtractedViews,
         &VisibleEntities,
         Option<&Tonemapping>,
         Option<&DebandDither>,
@@ -582,7 +582,8 @@ pub fn queue_material_meshes<M: Material>(
         let draw_transparent_pbr = transparent_draw_functions.read().id::<DrawMaterial<M>>();
 
         let mut view_key = MeshPipelineKey::from_msaa_samples(msaa.samples())
-            | MeshPipelineKey::from_hdr(view.hdr);
+            | MeshPipelineKey::from_hdr(view.hdr)
+            | MeshPipelineKey::from_view_count(view.views.len() as u8);
 
         if normal_prepass {
             view_key |= MeshPipelineKey::NORMAL_PREPASS;
@@ -649,7 +650,8 @@ pub fn queue_material_meshes<M: Material>(
             );
         }
 
-        let rangefinder = view.rangefinder3d();
+        // TODO!(MULTIVIEW)
+        let rangefinder = view.views[0].rangefinder3d();
         for visible_entity in visible_entities.iter::<WithMesh>() {
             let Some(material_asset_id) = render_material_instances.get(visible_entity) else {
                 continue;

@@ -5,6 +5,7 @@ use bevy::prelude::*;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .insert_resource(Msaa::Off)
         .add_systems(Startup, setup)
         .run();
 }
@@ -41,6 +42,14 @@ fn setup(
     // camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+        camera: Camera {
+            views: vec![
+                Transform::from_xyz(1.0, 0., 0.),
+                Transform::from_xyz(-1.0, 0., 0.),
+            ],
+            blit_view_override: 0,
+            ..default()
+        },
         ..default()
     });
 }

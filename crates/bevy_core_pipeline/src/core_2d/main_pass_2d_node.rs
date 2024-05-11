@@ -7,7 +7,7 @@ use bevy_render::{
     render_phase::SortedRenderPhase,
     render_resource::RenderPassDescriptor,
     renderer::RenderContext,
-    view::{ExtractedView, ViewTarget},
+    view::{ExtractedViews, ViewTarget},
 };
 #[cfg(feature = "trace")]
 use bevy_utils::tracing::info_span;
@@ -19,7 +19,7 @@ pub struct MainPass2dNode {
             &'static SortedRenderPhase<Transparent2d>,
             &'static ViewTarget,
         ),
-        With<ExtractedView>,
+        With<ExtractedViews>,
     >,
 }
 

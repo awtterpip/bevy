@@ -31,7 +31,7 @@ use bevy_render::{
     },
     renderer::{RenderContext, RenderDevice},
     texture::{BevyDefault, CachedTexture, TextureCache},
-    view::{ExtractedView, Msaa, ViewTarget},
+    view::{ExtractedViews, Msaa, ViewTarget},
     ExtractSchedule, MainWorld, Render, RenderApp, RenderSet,
 };
 
@@ -402,7 +402,7 @@ fn prepare_taa_history_textures(
     mut texture_cache: ResMut<TextureCache>,
     render_device: Res<RenderDevice>,
     frame_count: Res<FrameCount>,
-    views: Query<(Entity, &ExtractedCamera, &ExtractedView), With<TemporalAntiAliasSettings>>,
+    views: Query<(Entity, &ExtractedCamera, &ExtractedViews), With<TemporalAntiAliasSettings>>,
 ) {
     for (entity, camera, view) in &views {
         if let Some(physical_viewport_size) = camera.physical_viewport_size {
@@ -456,7 +456,7 @@ fn prepare_taa_pipelines(
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<TaaPipeline>>,
     pipeline: Res<TaaPipeline>,
-    views: Query<(Entity, &ExtractedView, &TemporalAntiAliasSettings)>,
+    views: Query<(Entity, &ExtractedViews, &TemporalAntiAliasSettings)>,
 ) {
     for (entity, view, taa_settings) in &views {
         let mut pipeline_key = TaaPipelineKey {

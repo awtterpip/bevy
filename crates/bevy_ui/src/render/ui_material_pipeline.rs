@@ -636,7 +636,7 @@ pub fn queue_ui_material_nodes<M: UiMaterial>(
     mut pipelines: ResMut<SpecializedRenderPipelines<UiMaterialPipeline<M>>>,
     pipeline_cache: Res<PipelineCache>,
     render_materials: Res<RenderAssets<PreparedUiMaterial<M>>>,
-    mut views: Query<(&ExtractedView, &mut SortedRenderPhase<TransparentUi>)>,
+    mut views: Query<(&ExtractedViews, &mut SortedRenderPhase<TransparentUi>)>,
 ) where
     M::Data: PartialEq + Eq + Hash + Clone,
 {

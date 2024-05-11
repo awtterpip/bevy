@@ -22,7 +22,7 @@ use bevy_render::{
     renderer::{RenderDevice, RenderQueue},
     settings::WgpuFeatures,
     texture::{FallbackImage, GpuImage, Image},
-    view::ExtractedView,
+    view::ExtractedViews,
     Extract, ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_transform::prelude::GlobalTransform;
@@ -403,7 +403,7 @@ fn gather_light_probes<C>(
 // a single structure, ready to be passed to the shader.
 fn upload_light_probes(
     mut commands: Commands,
-    views: Query<Entity, With<ExtractedView>>,
+    views: Query<Entity, With<ExtractedViews>>,
     mut light_probes_buffer: ResMut<LightProbesBuffer>,
     mut view_light_probes_query: Query<(
         Option<&RenderViewLightProbes<EnvironmentMapLight>>,

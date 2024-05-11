@@ -27,7 +27,7 @@ use bevy_render::{
     },
     render_resource::*,
     texture::BevyDefault,
-    view::{ExtractedView, Msaa, RenderLayers, ViewTarget},
+    view::{ExtractedViews, Msaa, RenderLayers, ViewTarget},
     Render, RenderApp, RenderSet,
 };
 use bevy_utils::tracing::error;
@@ -285,7 +285,7 @@ fn queue_line_gizmos_3d(
     line_gizmos: Query<(Entity, &Handle<LineGizmo>, &GizmoMeshConfig)>,
     line_gizmo_assets: Res<RenderAssets<GpuLineGizmo>>,
     mut views: Query<(
-        &ExtractedView,
+        &ExtractedViews,
         &mut SortedRenderPhase<Transparent3d>,
         Option<&RenderLayers>,
         (
@@ -368,7 +368,7 @@ fn queue_line_joint_gizmos_3d(
     line_gizmos: Query<(Entity, &Handle<LineGizmo>, &GizmoMeshConfig)>,
     line_gizmo_assets: Res<RenderAssets<GpuLineGizmo>>,
     mut views: Query<(
-        &ExtractedView,
+        &ExtractedViews,
         &mut SortedRenderPhase<Transparent3d>,
         Option<&RenderLayers>,
         (

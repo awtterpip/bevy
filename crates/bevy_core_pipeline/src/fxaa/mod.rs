@@ -18,7 +18,7 @@ use bevy_render::{
     },
     renderer::RenderDevice,
     texture::BevyDefault,
-    view::{ExtractedView, ViewTarget},
+    view::{ExtractedViews, ViewTarget},
     Render, RenderApp, RenderSet,
 };
 use bevy_utils::default;
@@ -204,7 +204,7 @@ pub fn prepare_fxaa_pipelines(
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<FxaaPipeline>>,
     fxaa_pipeline: Res<FxaaPipeline>,
-    views: Query<(Entity, &ExtractedView, &Fxaa)>,
+    views: Query<(Entity, &ExtractedViews, &Fxaa)>,
 ) {
     for (entity, view, fxaa) in &views {
         if !fxaa.enabled {

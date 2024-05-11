@@ -17,7 +17,7 @@ use bevy_render::{
     },
     renderer::RenderDevice,
     texture::BevyDefault,
-    view::{ExtractedView, ViewTarget},
+    view::{ExtractedViews, ViewTarget},
     Render, RenderApp, RenderSet,
 };
 
@@ -240,7 +240,7 @@ fn prepare_cas_pipelines(
     pipeline_cache: Res<PipelineCache>,
     mut pipelines: ResMut<SpecializedRenderPipelines<CASPipeline>>,
     sharpening_pipeline: Res<CASPipeline>,
-    views: Query<(Entity, &ExtractedView, &DenoiseCAS), With<CASUniform>>,
+    views: Query<(Entity, &ExtractedViews, &DenoiseCAS), With<CASUniform>>,
 ) {
     for (entity, view, cas_settings) in &views {
         let pipeline_id = pipelines.specialize(

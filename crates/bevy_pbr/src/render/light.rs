@@ -4,6 +4,7 @@ use bevy_ecs::prelude::*;
 use bevy_ecs::{entity::EntityHashMap, system::lifetimeless::Read};
 use bevy_math::{Mat4, UVec3, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 use bevy_render::mesh::Mesh;
+use bevy_render::view::ExtractedView;
 use bevy_render::{
     camera::Camera,
     diagnostic::RecordDiagnostics,
@@ -15,7 +16,7 @@ use bevy_render::{
     render_resource::*,
     renderer::{RenderContext, RenderDevice, RenderQueue},
     texture::*,
-    view::{ExtractedView, RenderLayers, ViewVisibility, VisibleEntities, WithMesh},
+    view::{ExtractedViews, RenderLayers, ViewVisibility, VisibleEntities, WithMesh},
     Extract,
 };
 use bevy_transform::{components::GlobalTransform, prelude::Transform};
@@ -684,7 +685,7 @@ pub fn prepare_lights(
     mut global_light_meta: ResMut<GlobalLightMeta>,
     mut light_meta: ResMut<LightMeta>,
     views: Query<
-        (Entity, &ExtractedView, &ExtractedClusterConfig),
+        (Entity, &ExtractedViews, &ExtractedClusterConfig),
         With<SortedRenderPhase<Transparent3d>>,
     >,
     ambient_light: Res<AmbientLight>,
@@ -971,7 +972,7 @@ pub fn prepare_lights(
         );
         let mut view_lights = Vec::new();
 
-        let is_orthographic = extracted_view.projection.w_axis.w == 1.0;
+        let is_orthographic = extracted_view.views[0].projection.w_axis.w == 1.0;
         let cluster_factors_zw = calculate_cluster_factors(
             clusters.near,
             clusters.far,
@@ -1045,18 +1046,21 @@ pub fn prepare_lights(
                                 face_index_to_name(face_index)
                             ),
                         },
-                        ExtractedView {
+                        ExtractedViews {
                             viewport: UVec4::new(
                                 0,
                                 0,
                                 point_light_shadow_map.size as u32,
                                 point_light_shadow_map.size as u32,
                             ),
-                            transform: view_translation * *view_rotation,
-                            view_projection: None,
-                            projection: cube_face_projection,
+                            views: vec![ExtractedView {
+                                transform: view_translation * *view_rotation,
+                                view_projection: None,
+                                projection: cube_face_projection,
+                            }],
                             hdr: false,
                             color_grading: Default::default(),
+                            blit_view_override: 0,
                         },
                         *frustum,
                         BinnedRenderPhase::<Shadow>::default(),
@@ -1104,18 +1108,21 @@ pub fn prepare_lights(
                         depth_attachment: DepthAttachment::new(depth_texture_view, Some(0.0)),
                         pass_name: format!("shadow pass spot light {light_index}"),
                     },
-                    ExtractedView {
+                    ExtractedViews {
                         viewport: UVec4::new(
                             0,
                             0,
                             directional_light_shadow_map.size as u32,
                             directional_light_shadow_map.size as u32,
                         ),
-                        transform: spot_view_transform,
-                        projection: spot_projection,
-                        view_projection: None,
+                        views: vec![ExtractedView {
+                            transform: spot_view_transform,
+                            projection: spot_projection,
+                            view_projection: None,
+                        }],
                         hdr: false,
                         color_grading: Default::default(),
+                        blit_view_override: 0,
                     },
                     *spot_light_frustum.unwrap(),
                     BinnedRenderPhase::<Shadow>::default(),
@@ -1184,18 +1191,21 @@ pub fn prepare_lights(
                             pass_name: format!(
                                 "shadow pass directional light {light_index} cascade {cascade_index}"),
                         },
-                        ExtractedView {
+                        ExtractedViews {
                             viewport: UVec4::new(
                                 0,
                                 0,
                                 directional_light_shadow_map.size as u32,
                                 directional_light_shadow_map.size as u32,
                             ),
-                            transform: GlobalTransform::from(cascade.view_transform),
-                            projection: cascade.projection,
-                            view_projection: Some(cascade.view_projection),
+                            views: vec![ExtractedView {
+                                transform: GlobalTransform::from(cascade.view_transform),
+                                projection: cascade.projection,
+                                view_projection: Some(cascade.view_projection),
+                            }],
                             hdr: false,
                             color_grading: Default::default(),
+                            blit_view_override: 0,
                         },
                         frustum,
                         BinnedRenderPhase::<Shadow>::default(),

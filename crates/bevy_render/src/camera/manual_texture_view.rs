@@ -18,14 +18,16 @@ pub struct ManualTextureViewHandle(pub u32);
 pub struct ManualTextureView {
     pub texture_view: TextureView,
     pub size: UVec2,
+    pub depth: u32,
     pub format: TextureFormat,
 }
 
 impl ManualTextureView {
-    pub fn with_default_format(texture_view: TextureView, size: UVec2) -> Self {
+    pub fn with_default_format(texture_view: TextureView, size: UVec2, depth: u32) -> Self {
         Self {
             texture_view,
             size,
+            depth,
             format: TextureFormat::bevy_default(),
         }
     }

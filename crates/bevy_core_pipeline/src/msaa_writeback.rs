@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use crate::{
     blit::{BlitPipeline, BlitPipelineKey},
     core_2d::graph::{Core2d, Node2d},
@@ -138,6 +140,12 @@ fn prepare_msaa_writeback_pipelines(
             let key = BlitPipelineKey {
                 texture_format: view_target.main_texture_format(),
                 samples: msaa.samples(),
+                input_array: view_target.main_texture_depth() > 1,
+                view_override: Some(view_target.blit_view_override()),
+                multiview: match view_target.out_texture_depth() {
+                    depth if depth > 1 => Some(NonZeroU32::new(depth).unwrap()),
+                    _ => None,
+                },
                 blend_state: None,
             };
 

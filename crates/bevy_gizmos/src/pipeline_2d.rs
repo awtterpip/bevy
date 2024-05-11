@@ -23,7 +23,7 @@ use bevy_render::{
     },
     render_resource::*,
     texture::BevyDefault,
-    view::{ExtractedView, Msaa, RenderLayers, ViewTarget},
+    view::{ExtractedViews, Msaa, RenderLayers, ViewTarget},
     Render, RenderApp, RenderSet,
 };
 use bevy_sprite::{Mesh2dPipeline, Mesh2dPipelineKey, SetMesh2dViewBindGroup};
@@ -260,7 +260,7 @@ fn queue_line_gizmos_2d(
     line_gizmos: Query<(Entity, &Handle<LineGizmo>, &GizmoMeshConfig)>,
     line_gizmo_assets: Res<RenderAssets<GpuLineGizmo>>,
     mut views: Query<(
-        &ExtractedView,
+        &ExtractedViews,
         &mut SortedRenderPhase<Transparent2d>,
         Option<&RenderLayers>,
     )>,
@@ -313,7 +313,7 @@ fn queue_line_joint_gizmos_2d(
     line_gizmos: Query<(Entity, &Handle<LineGizmo>, &GizmoMeshConfig)>,
     line_gizmo_assets: Res<RenderAssets<GpuLineGizmo>>,
     mut views: Query<(
-        &ExtractedView,
+        &ExtractedViews,
         &mut SortedRenderPhase<Transparent2d>,
         Option<&RenderLayers>,
     )>,

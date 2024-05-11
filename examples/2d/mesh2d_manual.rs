@@ -24,7 +24,7 @@ use bevy::{
             TextureFormat, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
         },
         texture::BevyDefault,
-        view::{ExtractedView, ViewTarget, VisibleEntities},
+        view::{ExtractedViews, ViewTarget, VisibleEntities},
         Extract, Render, RenderApp, RenderSet,
     },
     sprite::{
@@ -358,7 +358,7 @@ pub fn queue_colored_mesh2d(
     mut views: Query<(
         &VisibleEntities,
         &mut SortedRenderPhase<Transparent2d>,
-        &ExtractedView,
+        &ExtractedViews,
     )>,
 ) {
     if render_mesh_instances.is_empty() {

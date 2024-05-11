@@ -3,7 +3,7 @@ mod prepass_bindings;
 use bevy_ecs::query::ROQueryItem;
 use bevy_render::mesh::{GpuMesh, MeshVertexBufferLayoutRef};
 use bevy_render::render_resource::binding_types::{buffer_layout, uniform_buffer};
-use bevy_render::view::WithMesh;
+use bevy_render::view::{ExtractedViews, WithMesh};
 pub use prepass_bindings::*;
 
 use bevy_asset::{load_internal_asset, AssetServer};
@@ -21,7 +21,7 @@ use bevy_render::{
     render_phase::*,
     render_resource::*,
     renderer::{RenderDevice, RenderQueue},
-    view::{ExtractedView, Msaa, ViewUniform, ViewUniformOffset, ViewUniforms, VisibleEntities},
+    view::{Msaa, ViewUniform, ViewUniformOffset, ViewUniforms, VisibleEntities},
     Extract,
 };
 use bevy_transform::prelude::GlobalTransform;
@@ -669,7 +669,7 @@ pub fn prepare_previous_view_uniforms(
     mut views: Query<
         (
             Entity,
-            &ExtractedView,
+            &ExtractedViews,
             Option<&PreviousViewData>,
             Option<&mut PreviousViewUniformOffset>,
         ),
@@ -681,10 +681,11 @@ pub fn prepare_previous_view_uniforms(
         let view_projection = match maybe_previous_view_uniforms {
             Some(previous_view) => previous_view.clone(),
             None => {
-                let inverse_view = camera.transform.compute_matrix().inverse();
+                // TODO!(MULTIVIEW)
+                let inverse_view = camera.views[0].transform.compute_matrix().inverse();
                 PreviousViewData {
                     inverse_view,
-                    view_proj: camera.projection * inverse_view,
+                    view_proj: camera.views[0].projection * inverse_view,
                 }
             }
         };
@@ -782,7 +783,7 @@ pub fn queue_prepass_material_meshes<M: Material>(
     render_lightmaps: Res<RenderLightmaps>,
     mut views: Query<
         (
-            &ExtractedView,
+            &ExtractedViews,
             &VisibleEntities,
             Option<&mut BinnedRenderPhase<Opaque3dPrepass>>,
             Option<&mut BinnedRenderPhase<AlphaMask3dPrepass>>,

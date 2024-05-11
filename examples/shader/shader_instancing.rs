@@ -20,7 +20,7 @@ use bevy::{
         },
         render_resource::*,
         renderer::RenderDevice,
-        view::{ExtractedView, NoFrustumCulling},
+        view::{ExtractedViews, NoFrustumCulling},
         Render, RenderApp, RenderSet,
     },
 };
@@ -117,7 +117,7 @@ fn queue_custom(
     meshes: Res<RenderAssets<GpuMesh>>,
     render_mesh_instances: Res<RenderMeshInstances>,
     material_meshes: Query<Entity, With<InstanceMaterialData>>,
-    mut views: Query<(&ExtractedView, &mut SortedRenderPhase<Transparent3d>)>,
+    mut views: Query<(&ExtractedViews, &mut SortedRenderPhase<Transparent3d>)>,
 ) {
     let draw_custom = transparent_3d_draw_functions.read().id::<DrawCustom>();
 
@@ -125,7 +125,7 @@ fn queue_custom(
 
     for (view, mut transparent_phase) in &mut views {
         let view_key = msaa_key | MeshPipelineKey::from_hdr(view.hdr);
-        let rangefinder = view.rangefinder3d();
+        let rangefinder = view.views[0].rangefinder3d();
         for entity in &material_meshes {
             let Some(mesh_instance) = render_mesh_instances.render_mesh_queue_data(entity) else {
                 continue;

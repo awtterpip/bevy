@@ -27,7 +27,7 @@ use bevy_render::{
     texture::{
         BevyDefault, DefaultImageSampler, GpuImage, Image, ImageSampler, TextureFormatPixelInfo,
     },
-    view::{ExtractedView, ViewTarget, ViewUniform, ViewUniforms, ViewVisibility},
+    view::{ExtractedViews, ViewTarget, ViewUniform, ViewUniforms, ViewVisibility},
     Extract, ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_transform::components::GlobalTransform;
@@ -310,6 +310,7 @@ impl FromWorld for Mesh2dPipeline {
                 texture_format: image.texture_descriptor.format,
                 sampler,
                 size: image.size(),
+                depth: image.depth(),
                 mip_level_count: image.texture_descriptor.mip_level_count,
             }
         };
@@ -588,7 +589,7 @@ pub fn prepare_mesh2d_view_bind_groups(
     render_device: Res<RenderDevice>,
     mesh2d_pipeline: Res<Mesh2dPipeline>,
     view_uniforms: Res<ViewUniforms>,
-    views: Query<Entity, With<ExtractedView>>,
+    views: Query<Entity, With<ExtractedViews>>,
     globals_buffer: Res<GlobalsBuffer>,
 ) {
     if let (Some(view_binding), Some(globals)) =
