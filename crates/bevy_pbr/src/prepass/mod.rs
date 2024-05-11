@@ -2,6 +2,7 @@ mod prepass_bindings;
 
 use bevy_ecs::query::ROQueryItem;
 use bevy_render::render_resource::binding_types::{buffer_layout, uniform_buffer};
+use bevy_render::view::ExtractedViews;
 pub use prepass_bindings::*;
 
 use bevy_app::{Plugin, PreUpdate};
@@ -25,7 +26,7 @@ use bevy_render::{
     render_phase::*,
     render_resource::*,
     renderer::{RenderDevice, RenderQueue},
-    view::{ExtractedView, Msaa, ViewUniform, ViewUniformOffset, ViewUniforms, VisibleEntities},
+    view::{Msaa, ViewUniform, ViewUniformOffset, ViewUniforms, VisibleEntities},
     Extract, ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_transform::prelude::GlobalTransform;
@@ -595,6 +596,7 @@ where
             },
             push_constant_ranges,
             label: Some("prepass_pipeline".into()),
+            multiview: None,
         };
 
         // This is a bit risky because it's possible to change something that would
@@ -655,7 +657,7 @@ pub fn prepare_previous_view_projection_uniforms(
     mut views: Query<
         (
             Entity,
-            &ExtractedView,
+            &ExtractedViews,
             Option<&PreviousViewProjection>,
             Option<&mut PreviousViewUniformOffset>,
         ),
@@ -667,7 +669,8 @@ pub fn prepare_previous_view_projection_uniforms(
         let view_projection = match maybe_previous_view_uniforms {
             Some(previous_view) => previous_view.clone(),
             None => PreviousViewProjection {
-                view_proj: camera.projection * camera.transform.compute_matrix().inverse(),
+                view_proj: camera.views[0].projection
+                    * camera.views[0].transform.compute_matrix().inverse(),
             },
         };
 
@@ -764,7 +767,7 @@ pub fn queue_prepass_material_meshes<M: Material>(
     render_lightmaps: Res<RenderLightmaps>,
     mut views: Query<
         (
-            &ExtractedView,
+            &ExtractedViews,
             &VisibleEntities,
             Option<&mut RenderPhase<Opaque3dPrepass>>,
             Option<&mut RenderPhase<AlphaMask3dPrepass>>,
@@ -825,7 +828,7 @@ pub fn queue_prepass_material_meshes<M: Material>(
             view_key |= MeshPipelineKey::MOTION_VECTOR_PREPASS;
         }
 
-        let rangefinder = view.rangefinder3d();
+        let rangefinder = view.views[0].rangefinder3d();
 
         for visible_entity in &visible_entities.entities {
             let Some(material_asset_id) = render_material_instances.get(visible_entity) else {

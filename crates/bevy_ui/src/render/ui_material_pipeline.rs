@@ -204,6 +204,7 @@ where
                 alpha_to_coverage_enabled: false,
             },
             label: Some("ui_material_pipeline".into()),
+            multiview: None,
         };
         if let Some(vertex_shader) = &self.vertex_shader {
             descriptor.vertex.shader = vertex_shader.clone();
@@ -739,7 +740,7 @@ pub fn queue_ui_material_nodes<M: UiMaterial>(
     mut pipelines: ResMut<SpecializedRenderPipelines<UiMaterialPipeline<M>>>,
     pipeline_cache: Res<PipelineCache>,
     render_materials: Res<RenderUiMaterials<M>>,
-    mut views: Query<(&ExtractedView, &mut RenderPhase<TransparentUi>)>,
+    mut views: Query<(&ExtractedViews, &mut RenderPhase<TransparentUi>)>,
 ) where
     M::Data: PartialEq + Eq + Hash + Clone,
 {

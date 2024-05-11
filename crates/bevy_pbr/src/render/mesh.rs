@@ -35,7 +35,7 @@ use bevy_render::{
 };
 use bevy_transform::components::GlobalTransform;
 use bevy_utils::{tracing::error, Entry, HashMap, Hashed};
-use std::cell::Cell;
+use std::{cell::Cell, num::NonZeroU32};
 use thread_local::ThreadLocal;
 
 #[cfg(debug_assertions)]
@@ -408,6 +408,7 @@ impl FromWorld for MeshPipeline {
                 texture_format: image.texture_descriptor.format,
                 sampler,
                 size: image.size_f32(),
+                depth: image.depth(),
                 mip_level_count: image.texture_descriptor.mip_level_count,
             }
         };
@@ -488,7 +489,7 @@ bitflags::bitflags! {
     #[repr(transparent)]
     // NOTE: Apparently quadro drivers support up to 64x MSAA.
     /// MSAA uses the highest 3 bits for the MSAA log2(sample count) to support up to 128x MSAA.
-    pub struct MeshPipelineKey: u32 {
+    pub struct MeshPipelineKey: u64 {
         const NONE                              = 0;
         const HDR                               = 1 << 0;
         const TONEMAP_IN_SHADER                 = 1 << 1;
@@ -512,6 +513,7 @@ bitflags::bitflags! {
         const BLEND_PREMULTIPLIED_ALPHA         = 1 << Self::BLEND_SHIFT_BITS;                   //
         const BLEND_MULTIPLY                    = 2 << Self::BLEND_SHIFT_BITS;                   // ← We still have room for one more value without adding more bits
         const BLEND_ALPHA                       = 3 << Self::BLEND_SHIFT_BITS;
+        const MULTIVIEW_RESERVED_BITS           = Self::MULTIVIEW_MASK_BITS << Self::MULTIVIEW_SHIFT_BITS;
         const MSAA_RESERVED_BITS                = Self::MSAA_MASK_BITS << Self::MSAA_SHIFT_BITS;
         const PRIMITIVE_TOPOLOGY_RESERVED_BITS  = Self::PRIMITIVE_TOPOLOGY_MASK_BITS << Self::PRIMITIVE_TOPOLOGY_SHIFT_BITS;
         const TONEMAP_METHOD_RESERVED_BITS      = Self::TONEMAP_METHOD_MASK_BITS << Self::TONEMAP_METHOD_SHIFT_BITS;
@@ -541,37 +543,47 @@ bitflags::bitflags! {
 }
 
 impl MeshPipelineKey {
-    const MSAA_MASK_BITS: u32 = 0b111;
-    const MSAA_SHIFT_BITS: u32 = 32 - Self::MSAA_MASK_BITS.count_ones();
+    const MSAA_MASK_BITS: u64 = 0b111;
+    const MSAA_SHIFT_BITS: u64 = 64 - Self::MSAA_MASK_BITS.count_ones() as u64;
 
-    const PRIMITIVE_TOPOLOGY_MASK_BITS: u32 = 0b111;
-    const PRIMITIVE_TOPOLOGY_SHIFT_BITS: u32 =
-        Self::MSAA_SHIFT_BITS - Self::PRIMITIVE_TOPOLOGY_MASK_BITS.count_ones();
+    const PRIMITIVE_TOPOLOGY_MASK_BITS: u64 = 0b111;
+    const PRIMITIVE_TOPOLOGY_SHIFT_BITS: u64 =
+        Self::MSAA_SHIFT_BITS - Self::PRIMITIVE_TOPOLOGY_MASK_BITS.count_ones() as u64;
 
-    const BLEND_MASK_BITS: u32 = 0b11;
-    const BLEND_SHIFT_BITS: u32 =
-        Self::PRIMITIVE_TOPOLOGY_SHIFT_BITS - Self::BLEND_MASK_BITS.count_ones();
+    const MULTIVIEW_MASK_BITS: u64 = 0b1111;
+    const MULTIVIEW_SHIFT_BITS: u64 =
+        Self::PRIMITIVE_TOPOLOGY_SHIFT_BITS - Self::MULTIVIEW_MASK_BITS.count_ones() as u64;
 
-    const TONEMAP_METHOD_MASK_BITS: u32 = 0b111;
-    const TONEMAP_METHOD_SHIFT_BITS: u32 =
-        Self::BLEND_SHIFT_BITS - Self::TONEMAP_METHOD_MASK_BITS.count_ones();
+    const BLEND_MASK_BITS: u64 = 0b11;
+    const BLEND_SHIFT_BITS: u64 =
+        Self::MULTIVIEW_SHIFT_BITS - Self::BLEND_MASK_BITS.count_ones() as u64;
 
-    const SHADOW_FILTER_METHOD_MASK_BITS: u32 = 0b11;
-    const SHADOW_FILTER_METHOD_SHIFT_BITS: u32 =
-        Self::TONEMAP_METHOD_SHIFT_BITS - Self::SHADOW_FILTER_METHOD_MASK_BITS.count_ones();
+    const TONEMAP_METHOD_MASK_BITS: u64 = 0b111;
+    const TONEMAP_METHOD_SHIFT_BITS: u64 =
+        Self::BLEND_SHIFT_BITS - Self::TONEMAP_METHOD_MASK_BITS.count_ones() as u64;
 
-    const VIEW_PROJECTION_MASK_BITS: u32 = 0b11;
-    const VIEW_PROJECTION_SHIFT_BITS: u32 =
-        Self::SHADOW_FILTER_METHOD_SHIFT_BITS - Self::VIEW_PROJECTION_MASK_BITS.count_ones();
+    const SHADOW_FILTER_METHOD_MASK_BITS: u64 = 0b11;
+    const SHADOW_FILTER_METHOD_SHIFT_BITS: u64 =
+        Self::TONEMAP_METHOD_SHIFT_BITS - Self::SHADOW_FILTER_METHOD_MASK_BITS.count_ones() as u64;
 
-    const SCREEN_SPACE_SPECULAR_TRANSMISSION_MASK_BITS: u32 = 0b11;
-    const SCREEN_SPACE_SPECULAR_TRANSMISSION_SHIFT_BITS: u32 = Self::VIEW_PROJECTION_SHIFT_BITS
-        - Self::SCREEN_SPACE_SPECULAR_TRANSMISSION_MASK_BITS.count_ones();
+    const VIEW_PROJECTION_MASK_BITS: u64 = 0b11;
+    const VIEW_PROJECTION_SHIFT_BITS: u64 =
+        Self::SHADOW_FILTER_METHOD_SHIFT_BITS - Self::VIEW_PROJECTION_MASK_BITS.count_ones() as u64;
+
+    const SCREEN_SPACE_SPECULAR_TRANSMISSION_MASK_BITS: u64 = 0b11;
+    const SCREEN_SPACE_SPECULAR_TRANSMISSION_SHIFT_BITS: u64 = Self::VIEW_PROJECTION_SHIFT_BITS
+        - Self::SCREEN_SPACE_SPECULAR_TRANSMISSION_MASK_BITS.count_ones() as u64;
 
     pub fn from_msaa_samples(msaa_samples: u32) -> Self {
         let msaa_bits =
-            (msaa_samples.trailing_zeros() & Self::MSAA_MASK_BITS) << Self::MSAA_SHIFT_BITS;
+            (msaa_samples.trailing_zeros() as u64 & Self::MSAA_MASK_BITS) << Self::MSAA_SHIFT_BITS;
         Self::from_bits_retain(msaa_bits)
+    }
+
+    pub fn from_view_count(view_count: u8) -> Self {
+        let view_count_bits =
+            (view_count as u64 & Self::MULTIVIEW_MASK_BITS) << Self::MULTIVIEW_SHIFT_BITS;
+        Self::from_bits_retain(view_count_bits)
     }
 
     pub fn from_hdr(hdr: bool) -> Self {
@@ -586,8 +598,12 @@ impl MeshPipelineKey {
         1 << ((self.bits() >> Self::MSAA_SHIFT_BITS) & Self::MSAA_MASK_BITS)
     }
 
+    pub fn view_count(&self) -> u32 {
+        ((self.bits() >> Self::MULTIVIEW_SHIFT_BITS) & Self::MULTIVIEW_MASK_BITS) as _
+    }
+
     pub fn from_primitive_topology(primitive_topology: PrimitiveTopology) -> Self {
-        let primitive_topology_bits = ((primitive_topology as u32)
+        let primitive_topology_bits = ((primitive_topology as u64)
             & Self::PRIMITIVE_TOPOLOGY_MASK_BITS)
             << Self::PRIMITIVE_TOPOLOGY_SHIFT_BITS;
         Self::from_bits_retain(primitive_topology_bits)
@@ -597,11 +613,11 @@ impl MeshPipelineKey {
         let primitive_topology_bits = (self.bits() >> Self::PRIMITIVE_TOPOLOGY_SHIFT_BITS)
             & Self::PRIMITIVE_TOPOLOGY_MASK_BITS;
         match primitive_topology_bits {
-            x if x == PrimitiveTopology::PointList as u32 => PrimitiveTopology::PointList,
-            x if x == PrimitiveTopology::LineList as u32 => PrimitiveTopology::LineList,
-            x if x == PrimitiveTopology::LineStrip as u32 => PrimitiveTopology::LineStrip,
-            x if x == PrimitiveTopology::TriangleList as u32 => PrimitiveTopology::TriangleList,
-            x if x == PrimitiveTopology::TriangleStrip as u32 => PrimitiveTopology::TriangleStrip,
+            x if x == PrimitiveTopology::PointList as u64 => PrimitiveTopology::PointList,
+            x if x == PrimitiveTopology::LineList as u64 => PrimitiveTopology::LineList,
+            x if x == PrimitiveTopology::LineStrip as u64 => PrimitiveTopology::LineStrip,
+            x if x == PrimitiveTopology::TriangleList as u64 => PrimitiveTopology::TriangleList,
+            x if x == PrimitiveTopology::TriangleStrip as u64 => PrimitiveTopology::TriangleStrip,
             _ => PrimitiveTopology::default(),
         }
     }
@@ -654,6 +670,7 @@ impl SpecializedMeshPipeline for MeshPipeline {
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
         let mut shader_defs = Vec::new();
         let mut vertex_attributes = Vec::new();
+        let mut multiview = None;
 
         // Let the shader code know that it's running in a mesh pipeline.
         shader_defs.push("MESH_PIPELINE".into());
@@ -699,6 +716,11 @@ impl SpecializedMeshPipeline for MeshPipeline {
         if key.msaa_samples() > 1 {
             shader_defs.push("MULTISAMPLED".into());
         };
+
+        if key.view_count() > 1 {
+            shader_defs.push("MULTIVIEW".into());
+            multiview = Some(NonZeroU32::new(key.view_count()).unwrap());
+        }
 
         bind_group_layout.push(setup_morph_and_skinning_defs(
             &self.mesh_layouts,
@@ -949,6 +971,7 @@ impl SpecializedMeshPipeline for MeshPipeline {
                 alpha_to_coverage_enabled: false,
             },
             label: Some(label),
+            multiview,
         })
     }
 }

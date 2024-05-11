@@ -6,6 +6,7 @@ use bevy_core_pipeline::core_2d::graph::{Core2d, Node2d};
 use bevy_core_pipeline::core_3d::graph::{Core3d, Node3d};
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_hierarchy::Parent;
+use bevy_render::view::ExtractedView;
 use bevy_render::{
     render_phase::PhaseItem, render_resource::BindGroupEntries, view::ViewVisibility,
     ExtractSchedule, Render,
@@ -35,7 +36,7 @@ use bevy_render::{
     render_resource::*,
     renderer::{RenderDevice, RenderQueue},
     texture::Image,
-    view::{ExtractedView, ViewUniforms},
+    view::{ExtractedViews, ViewUniforms},
     Extract, RenderApp, RenderSet,
 };
 use bevy_sprite::TextureAtlasLayout;
@@ -522,14 +523,16 @@ pub fn extract_default_ui_camera_view<T: Component>(
                 UI_CAMERA_FAR,
             );
             let default_camera_view = commands
-                .spawn(ExtractedView {
-                    projection: projection_matrix,
-                    transform: GlobalTransform::from_xyz(
-                        0.0,
-                        0.0,
-                        UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
-                    ),
-                    view_projection: None,
+                .spawn(ExtractedViews {
+                    views: vec![ExtractedView {
+                        projection: projection_matrix,
+                        transform: GlobalTransform::from_xyz(
+                            0.0,
+                            0.0,
+                            UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
+                        ),
+                        view_projection: None,
+                    }],
                     hdr: camera.hdr,
                     viewport: UVec4::new(
                         physical_origin.x,
@@ -538,6 +541,7 @@ pub fn extract_default_ui_camera_view<T: Component>(
                         physical_size.y,
                     ),
                     color_grading: Default::default(),
+                    blit_view_override: 0,
                 })
                 .id();
             commands.get_or_spawn(entity).insert((
@@ -690,7 +694,7 @@ pub fn queue_uinodes(
     extracted_uinodes: Res<ExtractedUiNodes>,
     ui_pipeline: Res<UiPipeline>,
     mut pipelines: ResMut<SpecializedRenderPipelines<UiPipeline>>,
-    mut views: Query<(&ExtractedView, &mut RenderPhase<TransparentUi>)>,
+    mut views: Query<(&ExtractedViews, &mut RenderPhase<TransparentUi>)>,
     pipeline_cache: Res<PipelineCache>,
     draw_functions: Res<DrawFunctions<TransparentUi>>,
 ) {

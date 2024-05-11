@@ -172,6 +172,7 @@ impl ShaderCache {
         const CAPABILITIES: &[(Features, Capabilities)] = &[
             (Features::PUSH_CONSTANTS, Capabilities::PUSH_CONSTANT),
             (Features::SHADER_F64, Capabilities::FLOAT64),
+            (Features::MULTIVIEW, Capabilities::MULTIVIEW),
             (
                 Features::SHADER_PRIMITIVE_INDEX,
                 Capabilities::PRIMITIVE_INDEX,
@@ -760,7 +761,7 @@ impl PipelineCache {
                 });
 
                 let descriptor = RawRenderPipelineDescriptor {
-                    multiview: None,
+                    multiview: descriptor.multiview,
                     depth_stencil: descriptor.depth_stencil.clone(),
                     label: descriptor.label.as_deref(),
                     layout: layout.as_deref(),

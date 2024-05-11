@@ -11,8 +11,8 @@ use bevy_render::render_resource::binding_types::{
     sampler, texture_2d, texture_3d, uniform_buffer,
 };
 use bevy_render::renderer::RenderDevice;
-use bevy_render::texture::{CompressedImageFormats, Image, ImageSampler, ImageType};
-use bevy_render::view::{ViewTarget, ViewUniform};
+use bevy_render::texture::{CompressedImageFormats, GpuImage, Image, ImageSampler, ImageType};
+use bevy_render::view::{ExtractedViews, ViewTarget, ViewUniform};
 use bevy_render::{render_resource::*, Render, RenderApp, RenderSet};
 
 mod node;
@@ -246,6 +246,7 @@ impl SpecializedRenderPipeline for TonemappingPipeline {
             depth_stencil: None,
             multisample: MultisampleState::default(),
             push_constant_ranges: Vec::new(),
+            multiview: None,
         }
     }
 }

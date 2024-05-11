@@ -43,7 +43,15 @@ fn vertex(@builtin(vertex_index) vertex_index: u32) -> FullscreenVertexOutput {
 }
 
 @fragment
-fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
+fn fragment(
+    in: FullscreenVertexOutput,
+#ifdef MULTIVIEW
+    @builtin(view_index) view_index: i32,
+#endif
+) -> @location(0) vec4<f32> {
+#ifndef MULTIVIEW
+    let view_index: i32 = 0i;
+#endif
     var frag_coord = vec4(in.position.xy, 0.0, 0.0);
 
     let deferred_data = textureLoad(deferred_prepass_texture, vec2<i32>(frag_coord.xy), 0);
@@ -76,12 +84,12 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         pbr_input.specular_occlusion =  saturate(pow(NdotV + ssao, exp2(-16.0 * roughness - 1.0)) - 1.0 + ssao);
 #endif // SCREEN_SPACE_AMBIENT_OCCLUSION
 
-        output_color = pbr_functions::apply_pbr_lighting(pbr_input, 0u);
+        output_color = pbr_functions::apply_pbr_lighting(pbr_input, u32(view_index));
     } else {
         output_color = pbr_input.material.base_color;
     }
 
-    output_color = pbr_functions::main_pass_post_lighting_processing(pbr_input, output_color, 0u);
+    output_color = pbr_functions::main_pass_post_lighting_processing(pbr_input, output_color, u32(view_index));
 
     return output_color;
 }

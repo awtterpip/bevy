@@ -64,7 +64,7 @@ use bevy_render::{
     },
     renderer::RenderDevice,
     texture::{BevyDefault, ColorAttachment, TextureCache},
-    view::{ExtractedView, ViewDepthTexture, ViewTarget},
+    view::{ExtractedViews, ViewDepthTexture, ViewTarget},
     Extract, ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_utils::{nonmax::NonMaxU32, tracing::warn, FloatOrd, HashMap};
@@ -511,7 +511,13 @@ pub fn prepare_core_3d_depth_textures(
     msaa: Res<Msaa>,
     render_device: Res<RenderDevice>,
     views_3d: Query<
-        (Entity, &ExtractedCamera, Option<&DepthPrepass>, &Camera3d),
+        (
+            Entity,
+            &ExtractedCamera,
+            &ExtractedViews,
+            Option<&DepthPrepass>,
+            &Camera3d,
+        ),
         (
             With<RenderPhase<Opaque3d>>,
             With<RenderPhase<AlphaMask3d>>,
@@ -521,7 +527,7 @@ pub fn prepare_core_3d_depth_textures(
     >,
 ) {
     let mut render_target_usage = HashMap::default();
-    for (_, camera, depth_prepass, camera_3d) in &views_3d {
+    for (_, camera, _, depth_prepass, camera_3d) in &views_3d {
         // Default usage required to write to the depth texture
         let mut usage: TextureUsages = camera_3d.depth_texture_usages.into();
         if depth_prepass.is_some() {
@@ -535,7 +541,7 @@ pub fn prepare_core_3d_depth_textures(
     }
 
     let mut textures = HashMap::default();
-    for (entity, camera, _, camera_3d) in &views_3d {
+    for (entity, camera, views, _, camera_3d) in &views_3d {
         let Some(physical_target_size) = camera.physical_target_size else {
             continue;
         };
@@ -545,7 +551,7 @@ pub fn prepare_core_3d_depth_textures(
             .or_insert_with(|| {
                 // The size of the depth texture
                 let size = Extent3d {
-                    depth_or_array_layers: 1,
+                    depth_or_array_layers: views.views.len() as _,
                     width: physical_target_size.x,
                     height: physical_target_size.y,
                 };
@@ -595,7 +601,7 @@ pub fn prepare_core_3d_transmission_textures(
             Entity,
             &ExtractedCamera,
             &Camera3d,
-            &ExtractedView,
+            &ExtractedViews,
             &RenderPhase<Transmissive3d>,
         ),
         (
@@ -628,7 +634,7 @@ pub fn prepare_core_3d_transmission_textures(
 
                 // The size of the transmission texture
                 let size = Extent3d {
-                    depth_or_array_layers: 1,
+                    depth_or_array_layers: view.views.len() as _,
                     width: physical_target_size.x,
                     height: physical_target_size.y,
                 };
@@ -695,6 +701,7 @@ pub fn prepare_prepass_textures(
         (
             Entity,
             &ExtractedCamera,
+            &ExtractedViews,
             Has<DepthPrepass>,
             Has<NormalPrepass>,
             Has<MotionVectorPrepass>,
@@ -713,15 +720,22 @@ pub fn prepare_prepass_textures(
     let mut deferred_textures = HashMap::default();
     let mut deferred_lighting_id_textures = HashMap::default();
     let mut motion_vectors_textures = HashMap::default();
-    for (entity, camera, depth_prepass, normal_prepass, motion_vector_prepass, deferred_prepass) in
-        &views_3d
+    for (
+        entity,
+        camera,
+        views,
+        depth_prepass,
+        normal_prepass,
+        motion_vector_prepass,
+        deferred_prepass,
+    ) in &views_3d
     {
         let Some(physical_target_size) = camera.physical_target_size else {
             continue;
         };
 
         let size = Extent3d {
-            depth_or_array_layers: 1,
+            depth_or_array_layers: views.views.len() as _,
             width: physical_target_size.x,
             height: physical_target_size.y,
         };

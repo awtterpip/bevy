@@ -54,7 +54,11 @@ impl ViewNode for UpscalingNode {
             cached_bind_group => {
                 let bind_group = render_context.render_device().create_bind_group(
                     None,
-                    &blit_pipeline.texture_bind_group,
+                    if target.main_texture_depth() > 1 {
+                        &blit_pipeline.array_texture_bind_group
+                    } else {
+                        &blit_pipeline.texture_bind_group
+                    },
                     &BindGroupEntries::sequential((upscaled_texture, &blit_pipeline.sampler)),
                 );
 

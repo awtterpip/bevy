@@ -23,7 +23,7 @@ pub struct UiPassNode {
             &'static ViewTarget,
             &'static ExtractedCamera,
         ),
-        With<ExtractedView>,
+        With<ExtractedViews>,
     >,
     default_camera_view_query: QueryState<&'static DefaultCameraView>,
 }

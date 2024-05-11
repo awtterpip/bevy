@@ -27,7 +27,7 @@ use bevy_render::{
     render_resource::*,
     renderer::RenderDevice,
     texture::FallbackImage,
-    view::{ExtractedView, Msaa, VisibleEntities},
+    view::{ExtractedViews, Msaa, VisibleEntities},
     Extract, ExtractSchedule, Render, RenderApp, RenderSet,
 };
 use bevy_utils::{tracing::error, HashMap, HashSet};
@@ -470,7 +470,7 @@ pub fn queue_material_meshes<M: Material>(
     render_material_instances: Res<RenderMaterialInstances<M>>,
     render_lightmaps: Res<RenderLightmaps>,
     mut views: Query<(
-        &ExtractedView,
+        &ExtractedViews,
         &VisibleEntities,
         Option<&Tonemapping>,
         Option<&DebandDither>,
@@ -520,8 +520,9 @@ pub fn queue_material_meshes<M: Material>(
         let draw_transmissive_pbr = transmissive_draw_functions.read().id::<DrawMaterial<M>>();
         let draw_transparent_pbr = transparent_draw_functions.read().id::<DrawMaterial<M>>();
 
-        let mut view_key = MeshPipelineKey::from_msaa_samples(msaa.samples())
-            | MeshPipelineKey::from_hdr(view.hdr);
+        let mut view_key = MeshPipelineKey::from_msaa_samples(msaa.samples() as _)
+            | MeshPipelineKey::from_hdr(view.hdr)
+            | MeshPipelineKey::from_view_count(view.views.len() as u8);
 
         if normal_prepass {
             view_key |= MeshPipelineKey::NORMAL_PREPASS;
@@ -587,7 +588,8 @@ pub fn queue_material_meshes<M: Material>(
                 camera_3d.screen_space_specular_transmission_quality,
             );
         }
-        let rangefinder = view.rangefinder3d();
+        // TODO!(MULTIVIEW)
+        let rangefinder = view.views[0].rangefinder3d();
         for visible_entity in &visible_entities.entities {
             let Some(material_asset_id) = render_material_instances.get(visible_entity) else {
                 continue;

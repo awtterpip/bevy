@@ -1,12 +1,15 @@
 use crate::{
-    camera::CameraProjection,
-    camera::{ManualTextureViewHandle, ManualTextureViews},
+    camera::{CameraProjection, ManualTextureViewHandle, ManualTextureViews},
     prelude::Image,
     primitives::Frustum,
     render_asset::RenderAssets,
     render_graph::{InternedRenderSubGraph, RenderSubGraph},
     render_resource::TextureView,
-    view::{ColorGrading, ExtractedView, ExtractedWindows, RenderLayers, VisibleEntities},
+    texture::GpuImage,
+    view::{
+        ColorGrading, ExtractedView, ExtractedViews, ExtractedWindows, RenderLayers,
+        VisibleEntities,
+    },
     Extract,
 };
 use bevy_asset::{AssetEvent, AssetId, Assets, Handle};
@@ -26,7 +29,7 @@ use bevy_math::{
 };
 use bevy_reflect::prelude::*;
 use bevy_render_macros::ExtractComponent;
-use bevy_transform::components::GlobalTransform;
+use bevy_transform::components::{GlobalTransform, Transform};
 use bevy_utils::{HashMap, HashSet};
 use bevy_window::{
     NormalizedWindowRef, PrimaryWindow, Window, WindowCreated, WindowRef, WindowResized,
@@ -70,6 +73,8 @@ impl Default for Viewport {
 pub struct RenderTargetInfo {
     /// The physical size of this render target (in physical pixels, ignoring scale factor).
     pub physical_size: UVec2,
+    /// The depth or array layers of this render target.
+    pub depth: u32,
     /// The scale factor of this render target.
     ///
     /// When rendering to a window, typically it is a value greater or equal than 1.0,
@@ -215,6 +220,8 @@ pub struct Camera {
     pub msaa_writeback: bool,
     /// The clear color operation to perform on the render target.
     pub clear_color: ClearColorConfig,
+    pub views: Vec<Transform>,
+    pub blit_view_override: u32,
 }
 
 impl Default for Camera {
@@ -229,6 +236,8 @@ impl Default for Camera {
             hdr: false,
             msaa_writeback: true,
             clear_color: Default::default(),
+            views: vec![Transform::default()],
+            blit_view_override: 0,
         }
     }
 }
@@ -619,6 +628,22 @@ impl NormalizedRenderTarget {
         }
     }
 
+    pub fn get_texture_depth<'a>(
+        &self,
+        images: &'a RenderAssets<Image>,
+        manual_texture_views: &'a ManualTextureViews,
+    ) -> Option<u32> {
+        match self {
+            NormalizedRenderTarget::Window(_) => Some(1),
+            NormalizedRenderTarget::Image(image_handle) => {
+                images.get(image_handle).map(|image| image.depth)
+            }
+            NormalizedRenderTarget::TextureView(id) => {
+                manual_texture_views.get(id).map(|tex| tex.depth)
+            }
+        }
+    }
+
     pub fn get_render_target_info<'a>(
         &self,
         resolutions: impl IntoIterator<Item = (Entity, &'a Window)>,
@@ -634,18 +659,21 @@ impl NormalizedRenderTarget {
                         window.resolution.physical_width(),
                         window.resolution.physical_height(),
                     ),
+                    depth: 1,
                     scale_factor: window.resolution.scale_factor(),
                 }),
             NormalizedRenderTarget::Image(image_handle) => {
                 let image = images.get(image_handle)?;
                 Some(RenderTargetInfo {
                     physical_size: image.size(),
+                    depth: image.depth(),
                     scale_factor: 1.0,
                 })
             }
             NormalizedRenderTarget::TextureView(id) => {
                 manual_texture_views.get(id).map(|tex| RenderTargetInfo {
                     physical_size: tex.size,
+                    depth: tex.depth,
                     scale_factor: 1.0,
                 })
             }
@@ -878,10 +906,16 @@ pub fn extract_cameras(
                         .map(|e| e.exposure())
                         .unwrap_or_else(|| Exposure::default().exposure()),
                 },
-                ExtractedView {
-                    projection: camera.projection_matrix(),
-                    transform: *transform,
-                    view_projection: None,
+                ExtractedViews {
+                    views: camera
+                        .views
+                        .iter()
+                        .map(|t| ExtractedView {
+                            projection: camera.projection_matrix(),
+                            transform: transform.mul_transform(*t),
+                            view_projection: None,
+                        })
+                        .collect(),
                     hdr: camera.hdr,
                     viewport: UVec4::new(
                         viewport_origin.x,
@@ -890,6 +924,7 @@ pub fn extract_cameras(
                         viewport_size.y,
                     ),
                     color_grading,
+                    blit_view_override: camera.blit_view_override,
                 },
                 visible_entities.clone(),
                 *frustum,

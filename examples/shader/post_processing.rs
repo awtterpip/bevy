@@ -278,6 +278,7 @@ impl FromWorld for PostProcessPipeline {
                 depth_stencil: None,
                 multisample: MultisampleState::default(),
                 push_constant_ranges: vec![],
+                multiview: None,
             });
 
         Self {

@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use crate::{
     graph::NodePbr, irradiance_volume::IrradianceVolume, prelude::EnvironmentMapLight,
     MeshPipeline, MeshViewBindGroup, RenderViewLightProbes, ScreenSpaceAmbientOcclusionSettings,
@@ -23,7 +25,7 @@ use bevy_render::{
     render_resource::*,
     renderer::{RenderContext, RenderDevice},
     texture::BevyDefault,
-    view::{ExtractedView, ViewTarget, ViewUniformOffset},
+    view::{ExtractedViews, ViewTarget, ViewUniformOffset},
     Render, RenderApp, RenderSet,
 };
 
@@ -240,6 +242,7 @@ impl SpecializedRenderPipeline for DeferredLightingLayout {
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
         let mut shader_defs = Vec::new();
+        let mut multiview = None;
 
         // Let the shader code know that it's running in a deferred pipeline.
         shader_defs.push("DEFERRED_LIGHTING_PIPELINE".into());
@@ -313,6 +316,11 @@ impl SpecializedRenderPipeline for DeferredLightingLayout {
             shader_defs.push("SHADOW_FILTER_METHOD_JIMENEZ_14".into());
         }
 
+        if key.view_count() > 1 {
+            shader_defs.push("MULTIVIEW".into());
+            multiview = Some(NonZeroU32::new(key.view_count()).unwrap());
+        }
+
         #[cfg(all(feature = "webgl", target_arch = "wasm32", not(feature = "webgpu")))]
         shader_defs.push("SIXTEEN_BYTE_ALIGNMENT".into());
 
@@ -361,6 +369,7 @@ impl SpecializedRenderPipeline for DeferredLightingLayout {
             }),
             multisample: MultisampleState::default(),
             push_constant_ranges: vec![],
+            multiview,
         }
     }
 }
@@ -401,7 +410,7 @@ pub fn prepare_deferred_lighting_pipelines(
     views: Query<
         (
             Entity,
-            &ExtractedView,
+            &ExtractedViews,
             Option<&Tonemapping>,
             Option<&DebandDither>,
             Option<&ShadowFilteringMethod>,

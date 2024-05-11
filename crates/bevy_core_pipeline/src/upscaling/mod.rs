@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use crate::blit::{BlitPipeline, BlitPipelineKey};
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
@@ -44,6 +46,12 @@ fn prepare_view_upscaling_pipelines(
         };
         let key = BlitPipelineKey {
             texture_format: view_target.out_texture_format(),
+            input_array: view_target.main_texture_depth() > 1,
+            multiview: match view_target.out_texture_depth() {
+                depth if depth > 1 => Some(NonZeroU32::new(depth).unwrap()),
+                _ => None,
+            },
+            view_override: Some(view_target.blit_view_override()),
             blend_state,
             samples: 1,
         };

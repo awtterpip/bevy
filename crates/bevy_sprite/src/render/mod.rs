@@ -31,7 +31,7 @@ use bevy_render::{
         BevyDefault, DefaultImageSampler, GpuImage, Image, ImageSampler, TextureFormatPixelInfo,
     },
     view::{
-        ExtractedView, Msaa, ViewTarget, ViewUniform, ViewUniformOffset, ViewUniforms,
+        ExtractedViews, Msaa, ViewTarget, ViewUniform, ViewUniformOffset, ViewUniforms,
         ViewVisibility, VisibleEntities,
     },
     Extract,
@@ -103,6 +103,7 @@ impl FromWorld for SpritePipeline {
                 texture_format: image.texture_descriptor.format,
                 sampler,
                 size: image.size_f32(),
+                depth: image.depth(),
                 mip_level_count: image.texture_descriptor.mip_level_count,
             }
         };
@@ -289,6 +290,7 @@ impl SpecializedRenderPipeline for SpritePipeline {
             },
             label: Some("sprite_pipeline".into()),
             push_constant_ranges: Vec::new(),
+            multiview: None,
         }
     }
 }
@@ -460,7 +462,7 @@ pub fn queue_sprites(
     mut views: Query<(
         &mut RenderPhase<Transparent2d>,
         &VisibleEntities,
-        &ExtractedView,
+        &ExtractedViews,
         Option<&Tonemapping>,
         Option<&DebandDither>,
     )>,

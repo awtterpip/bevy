@@ -1,9 +1,11 @@
+use std::num::NonZeroU32;
+
 use bevy_app::{App, Plugin};
 use bevy_asset::{load_internal_asset, Handle};
 use bevy_ecs::prelude::*;
 use bevy_render::{
     render_resource::{
-        binding_types::{sampler, texture_2d},
+        binding_types::{sampler, texture_2d, texture_2d_array},
         *,
     },
     renderer::RenderDevice,
@@ -40,6 +42,7 @@ impl Plugin for BlitPlugin {
 #[derive(Resource)]
 pub struct BlitPipeline {
     pub texture_bind_group: BindGroupLayout,
+    pub array_texture_bind_group: BindGroupLayout,
     pub sampler: Sampler,
 }
 
@@ -58,10 +61,22 @@ impl FromWorld for BlitPipeline {
             ),
         );
 
+        let array_texture_bind_group = render_device.create_bind_group_layout(
+            "array_blit_bind_group_layout",
+            &BindGroupLayoutEntries::sequential(
+                ShaderStages::FRAGMENT,
+                (
+                    texture_2d_array(TextureSampleType::Float { filterable: false }),
+                    sampler(SamplerBindingType::NonFiltering),
+                ),
+            ),
+        );
+
         let sampler = render_device.create_sampler(&SamplerDescriptor::default());
 
         BlitPipeline {
             texture_bind_group,
+            array_texture_bind_group,
             sampler,
         }
     }
@@ -72,19 +87,38 @@ pub struct BlitPipelineKey {
     pub texture_format: TextureFormat,
     pub blend_state: Option<BlendState>,
     pub samples: u32,
+    pub input_array: bool,
+    pub multiview: Option<NonZeroU32>,
+    pub view_override: Option<u32>,
 }
 
 impl SpecializedRenderPipeline for BlitPipeline {
     type Key = BlitPipelineKey;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
+        let mut shader_defs = vec![];
+        let texture_bind_group = if key.input_array {
+            shader_defs.push("INPUT_ARRAY".into());
+            self.array_texture_bind_group.clone()
+        } else {
+            self.texture_bind_group.clone()
+        };
+
+        if key.multiview.is_some() {
+            shader_defs.push("MULTIVIEW".into());
+        }
+
+        if let Some(view_override) = key.view_override {
+            shader_defs.push(ShaderDefVal::UInt("VIEW_OVERRIDE".into(), view_override))
+        }
+
         RenderPipelineDescriptor {
             label: Some("blit pipeline".into()),
-            layout: vec![self.texture_bind_group.clone()],
+            layout: vec![texture_bind_group],
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
                 shader: BLIT_SHADER_HANDLE,
-                shader_defs: vec![],
+                shader_defs,
                 entry_point: "fs_main".into(),
                 targets: vec![Some(ColorTargetState {
                     format: key.texture_format,
@@ -99,6 +133,7 @@ impl SpecializedRenderPipeline for BlitPipeline {
                 ..Default::default()
             },
             push_constant_ranges: Vec::new(),
+            multiview: key.multiview,
         }
     }
 }

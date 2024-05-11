@@ -22,7 +22,7 @@ use bevy_render::{
     render_phase::{AddRenderCommand, DrawFunctions, RenderPhase, SetItemPipeline},
     render_resource::*,
     texture::BevyDefault,
-    view::{ExtractedView, Msaa, RenderLayers, ViewTarget},
+    view::{ExtractedViews, Msaa, RenderLayers, ViewTarget},
     Render, RenderApp, RenderSet,
 };
 
@@ -141,6 +141,7 @@ impl SpecializedRenderPipeline for LineGizmoPipeline {
             },
             label: Some("LineGizmo Pipeline".into()),
             push_constant_ranges: vec![],
+            multiview: None,
         }
     }
 }
@@ -162,7 +163,7 @@ fn queue_line_gizmos_3d(
     line_gizmos: Query<(Entity, &Handle<LineGizmo>, &GizmoMeshConfig)>,
     line_gizmo_assets: Res<RenderAssets<LineGizmo>>,
     mut views: Query<(
-        &ExtractedView,
+        &ExtractedViews,
         &mut RenderPhase<Transparent3d>,
         Option<&RenderLayers>,
         (
