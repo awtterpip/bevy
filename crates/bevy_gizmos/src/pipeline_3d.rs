@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use crate::{
     config::{GizmoLineJoint, GizmoLineStyle, GizmoMeshConfig},
     line_gizmo_vertex_buffer_layouts, line_joint_gizmo_vertex_buffer_layouts, DrawLineGizmo,
@@ -103,8 +105,15 @@ impl SpecializedRenderPipeline for LineGizmoPipeline {
             "SIXTEEN_BYTE_ALIGNMENT".into(),
         ];
 
+        let mut multiview = None;
+
         if key.perspective {
             shader_defs.push("PERSPECTIVE".into());
+        }
+
+        if key.view_key.view_count() > 1 {
+            multiview = Some(NonZeroU32::new(key.view_key.view_count()).unwrap());
+            shader_defs.push("MULTIVIEW".into());
         }
 
         let format = if key.view_key.contains(MeshPipelineKey::HDR) {
@@ -158,7 +167,7 @@ impl SpecializedRenderPipeline for LineGizmoPipeline {
             },
             label: Some("LineGizmo Pipeline".into()),
             push_constant_ranges: vec![],
-            multiview: None,
+            multiview,
         }
     }
 }
@@ -196,9 +205,15 @@ impl SpecializedRenderPipeline for LineJointGizmoPipeline {
             #[cfg(feature = "webgl")]
             "SIXTEEN_BYTE_ALIGNMENT".into(),
         ];
+        let mut multiview = None;
 
         if key.perspective {
             shader_defs.push("PERSPECTIVE".into());
+        }
+
+        if key.view_key.view_count() > 1 {
+            multiview = Some(NonZeroU32::new(key.view_key.view_count()).unwrap());
+            shader_defs.push("MULTIVIEW".into());
         }
 
         let format = if key.view_key.contains(MeshPipelineKey::HDR) {
@@ -257,7 +272,7 @@ impl SpecializedRenderPipeline for LineJointGizmoPipeline {
             },
             label: Some("LineJointGizmo Pipeline".into()),
             push_constant_ranges: vec![],
-            multiview: None,
+            multiview,
         }
     }
 }
