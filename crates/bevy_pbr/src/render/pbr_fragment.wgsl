@@ -32,11 +32,9 @@ fn pbr_input_from_vertex_output(
 ) -> pbr_types::PbrInput {
     var pbr_input: pbr_types::PbrInput = pbr_types::pbr_input_new();
 
-    pbr_input.flags = mesh[in.instance_index].flags;
-#endif
-
     let view = get_view(view_index);
 
+    pbr_input.flags = mesh[in.instance_index].flags;
     pbr_input.is_orthographic = view.projection[3].w == 1.0;
     pbr_input.V = pbr_functions::calculate_view(in.world_position, pbr_input.is_orthographic, view_index);
     pbr_input.frag_coord = in.position;

@@ -98,8 +98,7 @@ where
                 prepare_prepass_view_bind_group::<M>.in_set(RenderSet::PrepareBindGroups),
             )
             .init_resource::<SpecializedMeshPipelines<PrepassPipeline<M>>>()
-            .allow_ambiguous_resource::<SpecializedMeshPipelines<PrepassPipeline<M>>>()
-            .init_resource::<PreviousViewProjectionUniforms>();
+            .allow_ambiguous_resource::<SpecializedMeshPipelines<PrepassPipeline<M>>>();
     }
 
     fn finish(&self, app: &mut App) {
@@ -257,10 +256,10 @@ impl<M: Material> FromWorld for PrepassPipeline<M> {
                         buffer_layout(
                             BufferBindingType::Storage { read_only: true },
                             false,
-                            Some(PreviousViewData::min_size()),
+                            Some(PreviousViewProjection::min_size()),
                         ),
                     ),
-                    (27, uniform_buffer::<u32>(false)),
+                    (26, uniform_buffer::<u32>(false)),
                     (28, uniform_buffer::<u32>(false)),
                 ),
             ),
@@ -282,7 +281,7 @@ impl<M: Material> FromWorld for PrepassPipeline<M> {
                     ),
                     // Globals
                     (1, uniform_buffer::<GlobalsUniform>(false)),
-                    (27, uniform_buffer::<u32>(false)),
+                    (26, uniform_buffer::<u32>(false)),
                 ),
             ),
         );
@@ -625,7 +624,7 @@ pub fn extract_camera_previous_view_projection(
 
 #[derive(Resource)]
 pub struct PreviousViewUniforms {
-    pub uniforms: BufferVec<PreviousViewData>,
+    pub uniforms: BufferVec<PreviousViewProjection>,
 }
 
 impl FromWorld for PreviousViewUniforms {
@@ -657,23 +656,19 @@ pub fn prepare_previous_view_projection_uniforms(
         (
             Entity,
             &ExtractedView,
-            Option<&PreviousViewData>,
+            Option<&PreviousViewProjection>,
             Option<&mut PreviousViewUniformOffset>,
         ),
-        PreviousViewFilter,
+        With<MotionVectorPrepass>,
     >,
 ) {
     previous_view_uniforms.uniforms.clear();
     for (entity, camera, maybe_previous_view_uniforms, maybe_previous_offset) in &mut views {
         let view_projection = match maybe_previous_view_uniforms {
             Some(previous_view) => previous_view.clone(),
-            None => {
-                let inverse_view = camera.transform.compute_matrix().inverse();
-                PreviousViewData {
-                    inverse_view,
-                    view_proj: camera.projection * inverse_view,
-                }
-            }
+            None => PreviousViewProjection {
+                view_proj: camera.projection * camera.transform.compute_matrix().inverse(),
+            },
         };
 
         let index = previous_view_uniforms.uniforms.push(view_projection) as u32;
@@ -720,19 +715,13 @@ pub fn prepare_prepass_view_bind_group<M: Material>(
         for (entity, view_offset, maybe_previous_view_offset) in views.iter() {
             let mut prepass_view_bind_group = PrepassViewBindGroup::default();
 
-            let no_motion_vector_entries = BindGroupEntries::with_indices((
-                (0, view_binding.clone()),
-                (1, globals_binding.clone()),
-                (27, view_offset.buffer.binding().unwrap()),
-            ));
-
             prepass_view_bind_group.no_motion_vectors = Some(render_device.create_bind_group(
                 "prepass_view_no_motion_vectors_bind_group",
                 &prepass_pipeline.view_layout_no_motion_vectors,
                 &BindGroupEntries::with_indices((
                     (0, view_binding.clone()),
                     (1, globals_binding.clone()),
-                    (27, view_offset.buffer.binding().unwrap()),
+                    (26, view_offset.buffer.binding().unwrap()),
                 )),
             ));
 
@@ -747,7 +736,7 @@ pub fn prepare_prepass_view_bind_group<M: Material>(
                         (0, view_binding.clone()),
                         (1, globals_binding.clone()),
                         (2, previous_view_uniforms_binding.as_entire_binding()),
-                        (27, view_offset.buffer.binding().unwrap()),
+                        (26, view_offset.buffer.binding().unwrap()),
                         (28, previous_view_uniform_offset.offset.binding().unwrap()),
                     )),
                 ));

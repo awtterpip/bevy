@@ -653,14 +653,14 @@ struct UiVertex {
 
 #[derive(Resource)]
 pub struct UiMeta {
-    vertices: BufferVec<UiVertex>,
+    vertices: RawBufferVec<UiVertex>,
     view_bind_group: Option<BindGroup>,
 }
 
 impl Default for UiMeta {
     fn default() -> Self {
         Self {
-            vertices: BufferVec::new(BufferUsages::VERTEX),
+            vertices: RawBufferVec::new(BufferUsages::VERTEX),
             view_bind_group: None,
         }
     }
