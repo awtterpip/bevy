@@ -7,6 +7,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .insert_resource(Msaa::Off)
         .add_systems(Startup, setup)
+        .add_systems(Update, update)
         .run();
 }
 
@@ -52,4 +53,11 @@ fn setup(
         },
         ..default()
     });
+}
+
+fn update(mut cameras: Query<&mut Camera>, keys: Res<ButtonInput<KeyCode>>) {
+    let mut camera = cameras.single_mut();
+    if keys.just_pressed(KeyCode::KeyC) {
+        camera.blit_view_override = (camera.blit_view_override + 1) % 2;
+    }
 }
